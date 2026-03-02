@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+aiomysql
+pandas
+openpyxl
+aiofiles
+python-multipart
