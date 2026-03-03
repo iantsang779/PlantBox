@@ -5,6 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
+# Activate the project virtual environment (required — do not use system or miniforge Python)
+source ~/python_venv/bin/activate
+
 # Install dependencies
 pip install -r requirements.txt
 

@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
@@ -37,6 +38,11 @@ from database import (
 
 _CACHE_TTL_SECONDS = 30 * 60   # 30 minutes
 _CACHE_MAX_ENTRIES = 100
+
+ENSEMBL_REST_BASE     = "https://rest.ensembl.org"
+_MAX_SEQUENCE_IDS     = 50
+_ENSEMBL_TIMEOUT_SECS = 30.0
+_VALID_SEQ_TYPES      = {"genomic", "cdna", "cds", "protein"}
 
 # {token: {"data": list[dict], "columns": list[str], "ts": float}}
 _result_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
@@ -70,6 +76,36 @@ def _cache_get(token: str) -> dict[str, Any]:
             detail={
                 "error": "Result expired (30-minute TTL). Please run the query again."
             },
+        )
+    return entry
+
+
+# ---------------------------------------------------------------------------
+# FASTA cache (separate from tabular result cache)
+# ---------------------------------------------------------------------------
+
+# {token: {"fasta": str, "gene_count": int, "ts": float}}
+_fasta_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+
+def _fasta_cache_store(token: str, fasta: str, gene_count: int) -> None:
+    if len(_fasta_cache) >= _CACHE_MAX_ENTRIES:
+        _fasta_cache.popitem(last=False)
+    _fasta_cache[token] = {"fasta": fasta, "gene_count": gene_count, "ts": time.time()}
+
+
+def _fasta_cache_get(token: str) -> dict[str, Any]:
+    entry = _fasta_cache.get(token)
+    if entry is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Result expired or not found. Please run the query again."},
+        )
+    if time.time() - entry["ts"] > _CACHE_TTL_SECONDS:
+        del _fasta_cache[token]
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Result expired (30-minute TTL). Please run the query again."},
         )
     return entry
 
@@ -140,6 +176,29 @@ class QueryResponse(BaseModel):
     db_name: str
     row_count: int
     has_markers: bool
+
+
+class SequenceRequest(BaseModel):
+    gene_ids: list[str]
+    sequence_type: str = "genomic"
+
+    @model_validator(mode="after")
+    def validate_seq_request(self) -> "SequenceRequest":
+        if not self.gene_ids:
+            raise ValueError("At least one gene ID must be provided.")
+        if len(self.gene_ids) > _MAX_SEQUENCE_IDS:
+            raise ValueError(f"Maximum {_MAX_SEQUENCE_IDS} gene IDs allowed.")
+        if self.sequence_type not in _VALID_SEQ_TYPES:
+            raise ValueError(
+                f"Invalid sequence_type. Must be one of: {', '.join(sorted(_VALID_SEQ_TYPES))}."
+            )
+        return self
+
+
+class SequenceResponse(BaseModel):
+    token: str
+    fasta: str
+    gene_count: int
 
 
 # ---------------------------------------------------------------------------
@@ -242,4 +301,80 @@ async def download_excel(token: str):
         headers={
             "Content-Disposition": "attachment; filename=wheat_variants.xlsx"
         },
+    )
+
+
+@app.post("/api/sequences", response_model=SequenceResponse)
+async def fetch_sequences(request: SequenceRequest):
+    # Validate each gene ID individually
+    validated_ids: list[str] = []
+    for i, raw_id in enumerate(request.gene_ids):
+        if not raw_id.strip():
+            continue
+        try:
+            vid = validate_input(raw_id.strip(), f"gene_ids[{i}]")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)})
+        if vid:
+            validated_ids.append(vid)
+
+    if not validated_ids:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "No valid gene IDs provided after filtering blanks."},
+        )
+
+    sequence_type = request.sequence_type
+
+    try:
+        async with httpx.AsyncClient(timeout=_ENSEMBL_TIMEOUT_SECS) as client:
+            resp = await client.post(
+                f"{ENSEMBL_REST_BASE}/sequence/id",
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "text/x-fasta",
+                },
+                json={"ids": validated_ids, "type": sequence_type},
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "Ensembl REST API timed out. Please try again."},
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": f"Could not reach Ensembl REST API: {exc}"},
+        )
+
+    if resp.status_code == 400:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": f"Ensembl rejected the request: {resp.text[:300]}"},
+        )
+    if resp.status_code == 404:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "One or more gene IDs were not found in Ensembl."},
+        )
+    if not resp.is_success:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": f"Ensembl returned status {resp.status_code}: {resp.text[:300]}"},
+        )
+
+    fasta_text = resp.text
+    token = str(uuid.uuid4())
+    _fasta_cache_store(token, fasta_text, len(validated_ids))
+
+    return SequenceResponse(token=token, fasta=fasta_text, gene_count=len(validated_ids))
+
+
+@app.get("/api/download/fasta/{token}")
+async def download_fasta(token: str):
+    entry = _fasta_cache_get(token)
+    return StreamingResponse(
+        iter([entry["fasta"]]),
+        media_type="text/plain",
+        headers={"Content-Disposition": "attachment; filename=sequences.fasta"},
     )
