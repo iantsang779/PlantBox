@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Project:** PlantBox — Open-source tools for plant bioinformatics
+**GitHub:** https://github.com/iantsang779/PlantBox
+
 ## Commands
 
 ```bash
@@ -34,7 +37,7 @@ Then ask whether to push to `origin main`.
 
 ## Architecture
 
-This is a single-page FastAPI dashboard that queries the **EMBL-EBI public MySQL server** (`mysql-eg-publicsql.ebi.ac.uk:4157`, user `ensro`, no password) for wheat genomic variant and KASP marker data.
+PlantBox is a single-page FastAPI dashboard that queries the **EMBL-EBI public MySQL server** (`mysql-eg-publicsql.ebi.ac.uk:4157`, user `ensro`, no password) for plant genomic variant, KASP marker, and protein domain data across multiple species.
 
 ### Two-database design
 
