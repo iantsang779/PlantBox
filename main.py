@@ -8,6 +8,7 @@ Endpoints:
   GET  /api/download/excel/{token} → streams Excel from in-memory cache
 """
 
+import asyncio
 import io
 import time
 import uuid
@@ -111,6 +112,20 @@ def _fasta_cache_get(token: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Annotate cache (separate from FASTA and tabular caches)
+# ---------------------------------------------------------------------------
+
+# {token: {"data": dict, "ts": float}}
+_annotate_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+
+def _annotate_cache_store(token: str, data: dict) -> None:
+    if len(_annotate_cache) >= _CACHE_MAX_ENTRIES:
+        _annotate_cache.popitem(last=False)
+    _annotate_cache[token] = {"data": data, "ts": time.time()}
+
+
+# ---------------------------------------------------------------------------
 # Lifespan (startup / shutdown)
 # ---------------------------------------------------------------------------
 
@@ -199,6 +214,42 @@ class SequenceResponse(BaseModel):
     token: str
     fasta: str
     gene_count: int
+
+
+class AnnotateRequest(BaseModel):
+    gene_id: str
+
+    @model_validator(mode="after")
+    def validate_annotate_request(self) -> "AnnotateRequest":
+        validate_input(self.gene_id, "gene_id")
+        return self
+
+
+class SegmentInfo(BaseModel):
+    type: str           # "exon" | "intron"
+    number: int         # 1-indexed
+    genomic_start: int  # absolute chromosome position (inclusive)
+    genomic_end: int    # absolute chromosome position (inclusive)
+    seq_start: int      # 0-indexed start in the sequence string
+    seq_end: int        # 0-indexed exclusive end in the sequence string
+
+
+class TranscriptAnnotation(BaseModel):
+    transcript_id: str
+    is_canonical: bool
+    segments: list[SegmentInfo]
+
+
+class AnnotateResponse(BaseModel):
+    token: str
+    gene_id: str
+    display_name: str
+    chromosome: str
+    gene_start: int
+    gene_end: int
+    strand: int
+    sequence: str
+    transcripts: list[TranscriptAnnotation]
 
 
 # ---------------------------------------------------------------------------
@@ -378,3 +429,163 @@ async def download_fasta(token: str):
         media_type="text/plain",
         headers={"Content-Disposition": "attachment; filename=sequences.fasta"},
     )
+
+
+# ---------------------------------------------------------------------------
+# Annotate helpers
+# ---------------------------------------------------------------------------
+
+def _compute_segments(
+    gene_start: int,
+    gene_end: int,
+    strand: int,
+    exons: list[dict],
+) -> list[SegmentInfo]:
+    """Map exon genomic coordinates onto a flat sequence string, inserting intron segments for gaps."""
+    gene_len = gene_end - gene_start + 1
+    # Transcript order: ascending for +1 strand, descending for -1 (rev-complement)
+    ordered = sorted(exons, key=lambda e: e["start"], reverse=(strand == -1))
+
+    def to_seq_range(gstart: int, gend: int) -> tuple[int, int]:
+        if strand == 1:
+            return gstart - gene_start, gend - gene_start + 1
+        else:
+            return gene_end - gend, gene_end - gstart + 1
+
+    segments: list[SegmentInfo] = []
+    seq_pos = 0
+    intron_num = 0
+
+    for i, exon in enumerate(ordered):
+        s, e = to_seq_range(exon["start"], exon["end"])
+        if s > seq_pos:   # gap before this exon → intron / UTR region
+            intron_num += 1
+            segments.append(SegmentInfo(
+                type="intron",
+                number=intron_num,
+                genomic_start=gene_start + seq_pos if strand == 1 else gene_end - s + 1,
+                genomic_end=gene_start + s - 1 if strand == 1 else gene_end - seq_pos,
+                seq_start=seq_pos,
+                seq_end=s,
+            ))
+        segments.append(SegmentInfo(
+            type="exon",
+            number=i + 1,
+            genomic_start=exon["start"],
+            genomic_end=exon["end"],
+            seq_start=s,
+            seq_end=e,
+        ))
+        seq_pos = e
+
+    if seq_pos < gene_len:   # trailing region after last exon
+        intron_num += 1
+        segments.append(SegmentInfo(
+            type="intron",
+            number=intron_num,
+            genomic_start=gene_start + seq_pos if strand == 1 else gene_end - gene_len + 1,
+            genomic_end=gene_end if strand == 1 else gene_end - seq_pos,
+            seq_start=seq_pos,
+            seq_end=gene_len,
+        ))
+
+    return segments
+
+
+@app.post("/api/annotate", response_model=AnnotateResponse)
+async def annotate_gene(request: AnnotateRequest):
+    gene_id = request.gene_id.strip()
+
+    try:
+        async with httpx.AsyncClient(timeout=_ENSEMBL_TIMEOUT_SECS) as client:
+            ann_resp, seq_resp = await asyncio.gather(
+                client.get(
+                    f"{ENSEMBL_REST_BASE}/lookup/id/{gene_id}",
+                    params={"expand": "1"},
+                    headers={"Accept": "application/json"},
+                ),
+                client.get(
+                    f"{ENSEMBL_REST_BASE}/sequence/id/{gene_id}",
+                    params={"type": "genomic"},
+                    headers={"Accept": "application/json"},
+                ),
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "Ensembl REST API timed out. Please try again."},
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": f"Could not reach Ensembl REST API: {exc}"},
+        )
+
+    if ann_resp.status_code == 404:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": f"Gene ID '{gene_id}' not found in Ensembl."},
+        )
+    if ann_resp.status_code == 400:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": f"Invalid gene ID: {ann_resp.text[:300]}"},
+        )
+    if not ann_resp.is_success:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": f"Ensembl annotation error {ann_resp.status_code}: {ann_resp.text[:300]}"},
+        )
+    if seq_resp.status_code == 404:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": f"Sequence for '{gene_id}' not found in Ensembl."},
+        )
+    if not seq_resp.is_success:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": f"Ensembl sequence error {seq_resp.status_code}: {seq_resp.text[:300]}"},
+        )
+
+    ann_data = ann_resp.json()
+    seq_data = seq_resp.json()
+    sequence: str = seq_data.get("seq", "")
+
+    gene_start: int = ann_data["start"]
+    gene_end: int = ann_data["end"]
+    strand: int = ann_data["strand"]
+    chromosome: str = ann_data.get("seq_region_name", "")
+    display_name: str = ann_data.get("display_name", gene_id)
+
+    transcript_annotations: list[TranscriptAnnotation] = []
+    for tx in ann_data.get("Transcript", []):
+        tx_id: str = tx.get("id", "")
+        is_canonical: bool = bool(tx.get("is_canonical", 0))
+        exons = [{"start": e["start"], "end": e["end"]} for e in tx.get("Exon", [])]
+        if not exons:
+            continue
+        segments = _compute_segments(gene_start, gene_end, strand, exons)
+        transcript_annotations.append(TranscriptAnnotation(
+            transcript_id=tx_id,
+            is_canonical=is_canonical,
+            segments=segments,
+        ))
+
+    # Canonical transcript first, then alphabetical by ID
+    transcript_annotations.sort(key=lambda t: (not t.is_canonical, t.transcript_id))
+
+    token = str(uuid.uuid4())
+    result_data = {
+        "token": token,
+        "gene_id": gene_id,
+        "display_name": display_name,
+        "chromosome": chromosome,
+        "gene_start": gene_start,
+        "gene_end": gene_end,
+        "strand": strand,
+        "sequence": sequence,
+        "transcripts": [t.model_dump() for t in transcript_annotations],
+    }
+    _annotate_cache_store(token, result_data)
+
+    return AnnotateResponse(**result_data)
