@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BioToolbox</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%23a78bfa' viewBox='0 0 24 24'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.8' d='M12 3v18M9 6c0 0-3 1-3 4s3 3 3 3M15 6c0 0 3 1 3 4s-3 3-3 3M9 13c0 0-3 1-3 4s3 3 3 3M15 13c0 0 3 1 3 4s-3 3-3 3'/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%236cab4a' viewBox='0 0 24 24'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.8' d='M12 3v18M9 6c0 0-3 1-3 4s3 3 3 3M15 6c0 0 3 1 3 4s-3 3-3 3M9 13c0 0-3 1-3 4s3 3 3 3M15 13c0 0 3 1 3 4s-3 3-3 3'/%3E%3C/svg%3E" />
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -22,11 +22,11 @@
       theme: {
         extend: {
           colors: {
-            'surface-0': '#0f1117',
-            'surface-1': '#161b22',
-            'surface-2': '#1c2333',
-            'accent':    '#7c3aed',
-            'accent-light': '#a78bfa',
+            'surface-0': '#f3f5f0',
+            'surface-1': '#ffffff',
+            'surface-2': '#eef2e8',
+            'accent':    '#6cab4a',
+            'accent-light': '#5a9a3e',
           },
           fontFamily: {
             sans: ['Inter', 'ui-sans-serif', 'system-ui'],
@@ -39,12 +39,17 @@
   <style>
     /* ── Base ─────────────────────────────────────────────── */
     * { box-sizing: border-box; }
-    html, body { background-color: #0f1117; color: #e2e8f0; }
+    html, body {
+      background-color: #f3f5f0;
+      background-image: radial-gradient(circle, rgba(108,171,74,0.09) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: #1e293b;
+    }
 
     /* ── Scrollbar ────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #161b22; }
-    ::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 3px; }
+    ::-webkit-scrollbar-track { background: #eef2e8; }
+    ::-webkit-scrollbar-thumb { background: #6cab4a; border-radius: 3px; }
 
     /* ── Animations ───────────────────────────────────────── */
     @keyframes fadeIn {
@@ -66,7 +71,7 @@
     .skeleton-row {
       height: 2.5rem;
       border-radius: 4px;
-      background: linear-gradient(90deg, #1c2333 25%, #253047 50%, #1c2333 75%);
+      background: linear-gradient(90deg, #e8eddf 25%, #d8e5cb 50%, #e8eddf 75%);
       background-size: 800px 100%;
       animation: skeleton-wave 1.4s infinite linear;
     }
@@ -74,7 +79,7 @@
     /* ── Input focus ring ─────────────────────────────────── */
     .input-field:focus {
       outline: none;
-      box-shadow: 0 0 0 2px #a78bfa;
+      box-shadow: 0 0 0 2px #6cab4a;
     }
 
     /* ── Table ────────────────────────────────────────────── */
@@ -82,10 +87,10 @@
       position: sticky;
       top: 0;
       z-index: 10;
-      background: #1c2333;
+      background: #eef2e8;
     }
     .results-table tbody tr:hover {
-      background: #253047;
+      background: #f0f5ea;
     }
     .cell-truncate {
       max-width: 200px;
@@ -107,37 +112,37 @@
 
     /* ── Button ───────────────────────────────────────────── */
     .btn-primary {
-      background: #7c3aed;
+      background: #6cab4a;
       transition: background 0.15s, transform 0.1s;
     }
-    .btn-primary:hover { background: #6d28d9; }
+    .btn-primary:hover { background: #5a9a3e; }
     .btn-primary:active { transform: scale(0.97); }
     .btn-primary:disabled {
-      background: #3b2a6b;
+      background: #b8d9a1;
       cursor: not-allowed;
       opacity: 0.6;
     }
 
     .btn-outline {
-      border: 1px solid #374151;
+      border: 1px solid #cbd5c0;
       transition: border-color 0.15s, background 0.15s;
     }
     .btn-outline:hover {
-      border-color: #a78bfa;
-      background: #1c2333;
+      border-color: #6cab4a;
+      background: #eef2e8;
     }
 
     /* ── Checkbox ─────────────────────────────────────────── */
-    input[type="checkbox"] { accent-color: #7c3aed; cursor: pointer; }
+    input[type="checkbox"] { accent-color: #6cab4a; cursor: pointer; }
 
     /* ── Sort arrows ──────────────────────────────────────── */
     .sort-icon { opacity: 0.4; user-select: none; }
-    .sort-icon.active { opacity: 1; color: #a78bfa; }
+    .sort-icon.active { opacity: 1; color: #6cab4a; }
 
     /* ── Sequence type select ─────────────────────────────── */
     .seq-type-select {
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 0.65rem center;
       background-size: 1rem;
@@ -161,17 +166,17 @@
                    M9 13c0 0-3 1-3 4s3 3 3 3M15 13c0 0 3 1 3 4s-3 3-3 3" />
         </svg>
         <div>
-          <h1 class="text-lg font-semibold text-white leading-tight">
+          <h1 class="text-lg font-semibold text-slate-900 leading-tight">
             BioToolbox- Open Source Bioinformatics Tools
           </h1>
-          <p class="text-xs text-slate-400 mt-0.5">
+          <p class="text-xs text-slate-500 mt-0.5">
             Powered by EMBL-EBI Data
           </p>
         </div>
       </div>
 
       <!-- DB badge -->
-      <div x-show="dbName" class="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+      <div x-show="dbName" class="hidden sm:flex items-center gap-2 text-xs text-slate-500">
         <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
         <span x-text="dbName" class="font-mono"></span>
       </div>
@@ -188,8 +193,8 @@
     <button
       @click="activeTab = 'variants'"
       :class="activeTab === 'variants'
-        ? 'border-b-2 border-accent text-white font-semibold'
-        : 'text-slate-500 hover:text-slate-300'"
+        ? 'border-b-2 border-accent text-slate-900 font-semibold'
+        : 'text-slate-500 hover:text-slate-700'"
       class="px-4 py-2.5 text-sm transition-colors -mb-px focus:outline-none"
     >
       Variant Explorer
@@ -197,8 +202,8 @@
     <button
       @click="activeTab = 'sequences'"
       :class="activeTab === 'sequences'
-        ? 'border-b-2 border-accent text-white font-semibold'
-        : 'text-slate-500 hover:text-slate-300'"
+        ? 'border-b-2 border-accent text-slate-900 font-semibold'
+        : 'text-slate-500 hover:text-slate-700'"
       class="px-4 py-2.5 text-sm transition-colors -mb-px focus:outline-none"
     >
       Sequence Retrieval
@@ -206,8 +211,8 @@
     <button
       @click="activeTab = 'annotate'"
       :class="activeTab === 'annotate'
-        ? 'border-b-2 border-accent text-white font-semibold'
-        : 'text-slate-500 hover:text-slate-300'"
+        ? 'border-b-2 border-accent text-slate-900 font-semibold'
+        : 'text-slate-500 hover:text-slate-700'"
       class="px-4 py-2.5 text-sm transition-colors -mb-px focus:outline-none"
     >
       Annotate Sequence
@@ -219,66 +224,66 @@
   <!-- ── Variant Explorer Tab ───────────────────────────────── -->
   <div x-show="activeTab === 'variants'" class="space-y-6">
 
-    <p class="text-slate-400 text-sm my-4">
-      Search for genes associated with a specific wheat variant or a range of variants (e.g. <span class="text-slate-300 font-mono">Cadenza1714</span> for an exact match, or <span class="text-slate-300 font-mono">Cadenza17</span> to retrieve all variants sharing that prefix). Filter results by consequence type to narrow down functionally relevant mutations.
+    <p class="text-slate-500 text-sm my-4">
+      Search for genes associated with a specific wheat variant or a range of variants (e.g. <span class="text-slate-700 font-mono">Cadenza1714</span> for an exact match, or <span class="text-slate-700 font-mono">Cadenza17</span> to retrieve all variants sharing that prefix). Filter results by consequence type to narrow down functionally relevant mutations.
     </p>
 
     <!-- ── Query Panel ───────────────────────────────────────── -->
     <section class="bg-surface-1 border border-surface-2 rounded-xl p-6 fade-in relative z-20">
-      <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4">
+      <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-widest mb-4">
         Search Parameters
       </h2>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <!-- Variant ID -->
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1.5">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">
             Variant ID
-            <span class="ml-1 text-slate-600">(e.g. Cadenza1714)</span>
+            <span class="ml-1 text-slate-400">(e.g. Cadenza1714)</span>
           </label>
           <input
             type="text"
             x-model="variantId"
             placeholder="SNP / variant name prefix…"
             @keydown.enter="submitQuery()"
-            class="input-field w-full bg-surface-2 border border-slate-700 rounded-lg px-3 py-2.5
-                   text-sm text-white placeholder-slate-600 transition"
+            class="input-field w-full bg-surface-2 border border-slate-300 rounded-lg px-3 py-2.5
+                   text-sm text-slate-900 placeholder-slate-400 transition"
           />
         </div>
 
         <!-- Transcript ID -->
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1.5">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">
             Transcript ID
-            <span class="ml-1 text-slate-600">(e.g. TraesCS2A02G…)</span>
+            <span class="ml-1 text-slate-400">(e.g. TraesCS2A02G…)</span>
           </label>
           <input
             type="text"
             x-model="transcriptId"
             placeholder="Ensembl transcript ID prefix…"
             @keydown.enter="submitQuery()"
-            class="input-field w-full bg-surface-2 border border-slate-700 rounded-lg px-3 py-2.5
-                   text-sm text-white placeholder-slate-600 transition"
+            class="input-field w-full bg-surface-2 border border-slate-300 rounded-lg px-3 py-2.5
+                   text-sm text-slate-900 placeholder-slate-400 transition"
           />
         </div>
 
         <!-- Consequence Types (checkbox dropdown) -->
         <div class="relative" @click.away="consequenceDropdownOpen = false">
-          <label class="block text-xs font-medium text-slate-400 mb-1.5">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">
             Consequence Types
-            <span class="ml-1 text-slate-600">(optional filter)</span>
+            <span class="ml-1 text-slate-400">(optional filter)</span>
           </label>
 
           <!-- Trigger button -->
           <button
             type="button"
             @click="consequenceDropdownOpen = !consequenceDropdownOpen"
-            class="input-field w-full bg-surface-2 border border-slate-700 rounded-lg px-3 py-2.5
-                   text-sm text-white text-left flex items-center justify-between transition"
-            :class="consequenceDropdownOpen ? 'border-accent-light ring-2 ring-[#a78bfa]' : ''"
+            class="input-field w-full bg-surface-2 border border-slate-300 rounded-lg px-3 py-2.5
+                   text-sm text-slate-900 text-left flex items-center justify-between transition"
+            :class="consequenceDropdownOpen ? 'border-accent ring-2 ring-[#6cab4a]' : ''"
           >
-            <span x-text="consequenceLabel" class="truncate text-slate-300"></span>
-            <svg class="w-4 h-4 text-slate-500 ml-2 flex-shrink-0 transition-transform duration-150"
+            <span x-text="consequenceLabel" class="truncate text-slate-700"></span>
+            <svg class="w-4 h-4 text-slate-400 ml-2 flex-shrink-0 transition-transform duration-150"
                  :class="{ 'rotate-180': consequenceDropdownOpen }"
                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -294,31 +299,31 @@
             x-transition:leave="transition ease-in duration-75"
             x-transition:leave-start="opacity-100 translate-y-0"
             x-transition:leave-end="opacity-0 -translate-y-1"
-            class="absolute z-50 mt-1 w-full bg-surface-2 border border-slate-700
+            class="absolute z-50 mt-1 w-full bg-white border border-slate-200
                    rounded-lg shadow-2xl overflow-hidden"
           >
             <ul class="py-1 max-h-64 overflow-y-auto">
               <template x-for="ct in CONSEQUENCE_TYPES" :key="ct">
                 <li>
-                  <label class="flex items-center gap-3 px-3 py-2 hover:bg-surface-1 cursor-pointer">
+                  <label class="flex items-center gap-3 px-3 py-2 hover:bg-surface-2 cursor-pointer">
                     <input
                       type="checkbox"
                       :value="ct"
                       x-model="selectedConsequenceTypes"
-                      class="w-4 h-4 rounded border-slate-600 bg-surface-2 flex-shrink-0"
+                      class="w-4 h-4 rounded border-slate-300 bg-white flex-shrink-0"
                     />
-                    <span class="text-sm text-slate-300" x-text="ct.replace(/_/g, ' ')"></span>
+                    <span class="text-sm text-slate-700" x-text="ct.replace(/_/g, ' ')"></span>
                   </label>
                 </li>
               </template>
             </ul>
-            <div class="border-t border-slate-700 px-3 py-2 flex justify-between items-center">
-              <span class="text-xs text-slate-500"
+            <div class="border-t border-slate-200 px-3 py-2 flex justify-between items-center">
+              <span class="text-xs text-slate-400"
                     x-text="selectedConsequenceTypes.length + ' selected'"></span>
               <button
                 type="button"
                 @click="selectedConsequenceTypes = []"
-                class="text-xs text-slate-500 hover:text-slate-300 transition"
+                class="text-xs text-slate-400 hover:text-slate-700 transition"
               >Clear</button>
             </div>
           </div>
@@ -330,7 +335,7 @@
           @click="submitQuery()"
           :disabled="loading"
           class="btn-primary px-6 py-2.5 rounded-lg text-sm font-semibold text-white
-                 focus:outline-none focus:ring-2 focus:ring-accent-light"
+                 focus:outline-none focus:ring-2 focus:ring-accent"
         >
           <span x-show="!loading">Search</span>
           <span x-show="loading" class="flex items-center gap-2">
@@ -346,8 +351,8 @@
         <button
           x-show="rows.length > 0 || error"
           @click="resetState()"
-          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-400
-                 focus:outline-none focus:ring-2 focus:ring-accent-light"
+          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-600
+                 focus:outline-none focus:ring-2 focus:ring-accent"
         >
           Clear
         </button>
@@ -360,13 +365,13 @@
       x-transition:enter="transition ease-out duration-200"
       x-transition:enter-start="opacity-0 -translate-y-1"
       x-transition:enter-end="opacity-100 translate-y-0"
-      class="bg-red-950 border border-red-800 rounded-xl px-5 py-4 flex items-start gap-3"
+      class="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3"
     >
-      <svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
       </svg>
-      <p class="text-sm text-red-300" x-text="error"></p>
+      <p class="text-sm text-red-700" x-text="error"></p>
     </div>
 
     <!-- ── Loading Skeleton ──────────────────────────────────── -->
@@ -388,7 +393,7 @@
       <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-surface-2">
         <div class="flex items-center gap-3">
           <!-- Row count badge -->
-          <span class="badge bg-indigo-900 text-indigo-300">
+          <span class="badge bg-green-100 text-green-700">
             <svg class="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
               <path fill-rule="evenodd"
@@ -405,7 +410,7 @@
           <button
             @click="downloadCSV()"
             class="btn-outline flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                   text-slate-300 font-medium focus:outline-none focus:ring-2 focus:ring-accent-light"
+                   text-slate-600 font-medium focus:outline-none focus:ring-2 focus:ring-accent"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -416,7 +421,7 @@
           <button
             @click="downloadExcel()"
             class="btn-outline flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                   text-slate-300 font-medium focus:outline-none focus:ring-2 focus:ring-accent-light"
+                   text-slate-600 font-medium focus:outline-none focus:ring-2 focus:ring-accent"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -435,9 +440,9 @@
               <template x-for="(col, idx) in columns" :key="col">
                 <th
                   @click="sortBy(col)"
-                  class="px-4 py-3 text-left text-xs font-semibold text-slate-400
+                  class="px-4 py-3 text-left text-xs font-semibold text-slate-500
                          uppercase tracking-wider whitespace-nowrap cursor-pointer select-none
-                         hover:text-slate-200 transition-colors"
+                         hover:text-slate-800 transition-colors"
                 >
                   <span class="flex items-center gap-1">
                     <span x-text="col.replace(/_/g, ' ')"></span>
@@ -458,7 +463,7 @@
             <template x-for="(row, rIdx) in pagedRows" :key="rIdx">
               <tr class="bg-surface-1 transition-colors">
                 <template x-for="col in columns" :key="col">
-                  <td class="px-4 py-2.5 text-slate-300">
+                  <td class="px-4 py-2.5 text-slate-700">
                     <span
                       class="cell-truncate block"
                       :title="row[col] != null ? String(row[col]) : ''"
@@ -474,7 +479,7 @@
 
       <!-- Pagination -->
       <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-surface-2">
-        <span class="text-xs text-slate-400">
+        <span class="text-xs text-slate-500">
           Page <span x-text="currentPage"></span> of <span x-text="totalPages"></span>
           &nbsp;·&nbsp; <span x-text="rows.length"></span> total rows
         </span>
@@ -483,13 +488,13 @@
           <button
             @click="currentPage = 1"
             :disabled="currentPage === 1"
-            class="btn-outline px-2 py-1 rounded text-xs text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+            class="btn-outline px-2 py-1 rounded text-xs text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
           >«</button>
           <!-- Prev -->
           <button
             @click="currentPage--"
             :disabled="currentPage === 1"
-            class="btn-outline px-2 py-1 rounded text-xs text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+            class="btn-outline px-2 py-1 rounded text-xs text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
           >‹</button>
           <!-- Page numbers -->
           <template x-for="p in pageNumbers" :key="p">
@@ -497,7 +502,7 @@
               @click="currentPage = p"
               :class="p === currentPage
                 ? 'bg-accent text-white border-accent'
-                : 'btn-outline text-slate-400'"
+                : 'btn-outline text-slate-600'"
               class="px-2.5 py-1 rounded text-xs font-medium border transition-colors"
               x-text="p"
             ></button>
@@ -506,13 +511,13 @@
           <button
             @click="currentPage++"
             :disabled="currentPage === totalPages"
-            class="btn-outline px-2 py-1 rounded text-xs text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+            class="btn-outline px-2 py-1 rounded text-xs text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
           >›</button>
           <!-- Last -->
           <button
             @click="currentPage = totalPages"
             :disabled="currentPage === totalPages"
-            class="btn-outline px-2 py-1 rounded text-xs text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+            class="btn-outline px-2 py-1 rounded text-xs text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
           >»</button>
         </div>
       </div>
@@ -525,13 +530,13 @@
   <!-- ── Sequence Retrieval Tab ────────────────────────────── -->
   <div x-show="activeTab === 'sequences'" class="space-y-6">
 
-    <p class="text-slate-400 text-sm my-4">
+    <p class="text-slate-500 text-sm my-4">
       Blazingly fast, near real-time retrieval of CDS, genomic, protein, and cDNA sequences for any wheat gene or transcript. Results are returned directly from the EBI Ensembl REST API with minimal latency.
     </p>
 
     <!-- Input panel -->
     <section class="bg-surface-1 border border-surface-2 rounded-xl p-6 fade-in">
-      <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4">
+      <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-widest mb-4">
         Sequence Retrieval
       </h2>
 
@@ -539,13 +544,13 @@
 
         <!-- Sequence type -->
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1.5">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">
             Sequence Type
           </label>
           <select
             x-model="seqType"
-            class="seq-type-select input-field w-full bg-surface-2 border border-slate-700
-                   rounded-lg px-3 py-2.5 text-sm text-white transition cursor-pointer"
+            class="seq-type-select input-field w-full bg-surface-2 border border-slate-300
+                   rounded-lg px-3 py-2.5 text-sm text-slate-900 transition cursor-pointer"
           >
             <option value="genomic">Genomic</option>
             <option value="cdna">cDNA</option>
@@ -556,18 +561,18 @@
 
         <!-- Gene IDs textarea -->
         <div class="sm:col-span-2">
-          <label class="block text-xs font-medium text-slate-400 mb-1.5">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">
             Gene IDs
-            <span class="ml-1 text-slate-600">(one per line, max 50)</span>
+            <span class="ml-1 text-slate-400">(one per line, max 50)</span>
           </label>
           <textarea
             x-model="seqGeneIdsRaw"
             rows="5"
             placeholder="TRAESCS2A02G395300&#10;TRAESCS2B02G415900&#10;…"
-            class="input-field w-full bg-surface-2 border border-slate-700 rounded-lg px-3 py-2.5
-                   text-sm text-white placeholder-slate-600 transition resize-y"
+            class="input-field w-full bg-surface-2 border border-slate-300 rounded-lg px-3 py-2.5
+                   text-sm text-slate-900 placeholder-slate-400 transition resize-y"
           ></textarea>
-          <p class="mt-1 text-xs text-slate-500" x-text="seqGeneCountLabel"></p>
+          <p class="mt-1 text-xs text-slate-400" x-text="seqGeneCountLabel"></p>
         </div>
       </div>
 
@@ -576,7 +581,7 @@
           @click="submitSequences()"
           :disabled="seqLoading"
           class="btn-primary px-6 py-2.5 rounded-lg text-sm font-semibold text-white
-                 focus:outline-none focus:ring-2 focus:ring-accent-light"
+                 focus:outline-none focus:ring-2 focus:ring-accent"
         >
           <span x-show="!seqLoading">Fetch Sequences</span>
           <span x-show="seqLoading" class="flex items-center gap-2">
@@ -592,8 +597,8 @@
         <button
           x-show="seqFasta || seqError"
           @click="resetSeqState()"
-          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-400
-                 focus:outline-none focus:ring-2 focus:ring-accent-light"
+          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-600
+                 focus:outline-none focus:ring-2 focus:ring-accent"
         >
           Clear
         </button>
@@ -606,13 +611,13 @@
       x-transition:enter="transition ease-out duration-200"
       x-transition:enter-start="opacity-0 -translate-y-1"
       x-transition:enter-end="opacity-100 translate-y-0"
-      class="bg-red-950 border border-red-800 rounded-xl px-5 py-4 flex items-start gap-3"
+      class="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3"
     >
-      <svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
       </svg>
-      <p class="text-sm text-red-300" x-text="seqError"></p>
+      <p class="text-sm text-red-700" x-text="seqError"></p>
     </div>
 
     <!-- Loading skeleton -->
@@ -632,7 +637,7 @@
     >
       <!-- Header bar -->
       <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-surface-2">
-        <span class="badge bg-indigo-900 text-indigo-300">
+        <span class="badge bg-green-100 text-green-700">
           <svg class="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd"
                   d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
@@ -644,7 +649,7 @@
         <button
           @click="downloadFasta()"
           class="btn-outline flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-                 text-slate-300 font-medium focus:outline-none focus:ring-2 focus:ring-accent-light"
+                 text-slate-600 font-medium focus:outline-none focus:ring-2 focus:ring-accent"
         >
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -657,7 +662,7 @@
       <!-- FASTA output -->
       <div class="p-4">
         <pre
-          class="font-mono text-xs text-slate-300 bg-surface-2 rounded-lg p-4
+          class="font-mono text-xs text-slate-700 bg-surface-2 rounded-lg p-4
                  max-h-[60vh] overflow-auto whitespace-pre leading-relaxed"
           x-text="seqFasta"
         ></pre>
@@ -669,28 +674,28 @@
   <!-- ── Annotate Sequence Tab ──────────────────────────────── -->
   <div x-show="activeTab === 'annotate'" class="space-y-6">
 
-    <p class="text-slate-400 text-sm my-4">
+    <p class="text-slate-500 text-sm my-4">
       Pull exon and intron annotations for a given DNA sequence based on your query, and explore an interactive visualisation of the gene's exon–intron architecture.
     </p>
 
     <!-- Input panel -->
     <section class="bg-surface-1 border border-surface-2 rounded-xl p-6 fade-in">
-      <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4">
+      <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-widest mb-4">
         Annotate Sequence
       </h2>
 
       <div class="max-w-md">
-        <label class="block text-xs font-medium text-slate-400 mb-1.5">
+        <label class="block text-xs font-medium text-slate-600 mb-1.5">
           Gene ID
-          <span class="ml-1 text-slate-600">(e.g. TRAESCS3D02G273600)</span>
+          <span class="ml-1 text-slate-400">(e.g. TRAESCS3D02G273600)</span>
         </label>
         <input
           type="text"
           x-model="annGeneId"
           placeholder="Ensembl gene ID…"
           @keydown.enter="submitAnnotate()"
-          class="input-field w-full bg-surface-2 border border-slate-700 rounded-lg px-3 py-2.5
-                 text-sm text-white placeholder-slate-600 transition"
+          class="input-field w-full bg-surface-2 border border-slate-300 rounded-lg px-3 py-2.5
+                 text-sm text-slate-900 placeholder-slate-400 transition"
         />
       </div>
 
@@ -699,7 +704,7 @@
           @click="submitAnnotate()"
           :disabled="annLoading"
           class="btn-primary px-6 py-2.5 rounded-lg text-sm font-semibold text-white
-                 focus:outline-none focus:ring-2 focus:ring-accent-light"
+                 focus:outline-none focus:ring-2 focus:ring-accent"
         >
           <span x-show="!annLoading">Annotate</span>
           <span x-show="annLoading" class="flex items-center gap-2">
@@ -715,8 +720,8 @@
         <button
           x-show="annTranscripts.length > 0 || annError"
           @click="resetAnnotateState()"
-          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-400
-                 focus:outline-none focus:ring-2 focus:ring-accent-light"
+          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-600
+                 focus:outline-none focus:ring-2 focus:ring-accent"
         >
           Clear
         </button>
@@ -729,13 +734,13 @@
       x-transition:enter="transition ease-out duration-200"
       x-transition:enter-start="opacity-0 -translate-y-1"
       x-transition:enter-end="opacity-100 translate-y-0"
-      class="bg-red-950 border border-red-800 rounded-xl px-5 py-4 flex items-start gap-3"
+      class="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3"
     >
-      <svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
       </svg>
-      <p class="text-sm text-red-300" x-text="annError"></p>
+      <p class="text-sm text-red-700" x-text="annError"></p>
     </div>
 
     <!-- Loading skeleton -->
@@ -756,42 +761,42 @@
       <!-- Gene metadata bar -->
       <div class="px-5 py-4 border-b border-surface-2 flex flex-wrap items-center gap-4">
         <div>
-          <span class="text-xs text-slate-500 uppercase tracking-wider">Gene</span>
-          <p class="text-sm font-semibold text-white mt-0.5">
+          <span class="text-xs text-slate-400 uppercase tracking-wider">Gene</span>
+          <p class="text-sm font-semibold text-slate-900 mt-0.5">
             <span x-text="annGeneInfo.display_name"></span>
-            <span class="font-normal text-slate-400 ml-1.5" x-text="'(' + annGeneInfo.gene_id + ')'"></span>
+            <span class="font-normal text-slate-500 ml-1.5" x-text="'(' + annGeneInfo.gene_id + ')'"></span>
           </p>
         </div>
         <div>
-          <span class="text-xs text-slate-500 uppercase tracking-wider">Location</span>
-          <p class="text-sm text-slate-300 mt-0.5 font-mono">
+          <span class="text-xs text-slate-400 uppercase tracking-wider">Location</span>
+          <p class="text-sm text-slate-700 mt-0.5 font-mono">
             chr<span x-text="annGeneInfo.chromosome"></span>:<span x-text="annGeneInfo.gene_start?.toLocaleString()"></span>–<span x-text="annGeneInfo.gene_end?.toLocaleString()"></span>
           </p>
         </div>
         <div>
-          <span class="text-xs text-slate-500 uppercase tracking-wider">Strand</span>
+          <span class="text-xs text-slate-400 uppercase tracking-wider">Strand</span>
           <p class="mt-0.5">
             <span
-              :class="annGeneInfo.strand === 1 ? 'bg-emerald-900 text-emerald-300' : 'bg-orange-900 text-orange-300'"
+              :class="annGeneInfo.strand === 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'"
               class="badge"
               x-text="annGeneInfo.strand === 1 ? '+1 (forward)' : '−1 (reverse)'"
             ></span>
           </p>
         </div>
         <div>
-          <span class="text-xs text-slate-500 uppercase tracking-wider">Length</span>
-          <p class="text-sm text-slate-300 mt-0.5 font-mono"
+          <span class="text-xs text-slate-400 uppercase tracking-wider">Length</span>
+          <p class="text-sm text-slate-700 mt-0.5 font-mono"
              x-text="((annGeneInfo.gene_end - annGeneInfo.gene_start + 1) || 0).toLocaleString() + ' bp'"></p>
         </div>
       </div>
 
       <!-- Transcript selector -->
       <div class="px-5 py-3 border-b border-surface-2 flex items-center gap-3">
-        <label class="text-xs font-medium text-slate-400 whitespace-nowrap">Transcript</label>
+        <label class="text-xs font-medium text-slate-600 whitespace-nowrap">Transcript</label>
         <select
           x-model="annSelectedTranscript"
-          class="seq-type-select input-field bg-surface-2 border border-slate-700 rounded-lg
-                 px-3 py-2 text-sm text-white transition cursor-pointer"
+          class="seq-type-select input-field bg-surface-2 border border-slate-300 rounded-lg
+                 px-3 py-2 text-sm text-slate-900 transition cursor-pointer"
         >
           <template x-for="tx in annTranscripts" :key="tx.transcript_id">
             <option :value="tx.transcript_id"
@@ -799,12 +804,12 @@
             </option>
           </template>
         </select>
-        <span class="text-xs text-slate-500" x-text="annTranscripts.length + ' transcript' + (annTranscripts.length !== 1 ? 's' : '')"></span>
+        <span class="text-xs text-slate-400" x-text="annTranscripts.length + ' transcript' + (annTranscripts.length !== 1 ? 's' : '')"></span>
       </div>
 
       <!-- Legend -->
-      <div class="px-5 py-2.5 border-b border-surface-2 flex items-center gap-4 text-xs text-slate-400">
-        <span class="font-medium text-slate-500 uppercase tracking-wider text-[10px]">Legend</span>
+      <div class="px-5 py-2.5 border-b border-surface-2 flex items-center gap-4 text-xs text-slate-500">
+        <span class="font-medium text-slate-400 uppercase tracking-wider text-[10px]">Legend</span>
         <span class="flex items-center gap-1.5">
           <span class="inline-block w-3.5 h-3.5 rounded-sm bg-blue-200"></span>Exon (odd)
         </span>
@@ -847,16 +852,16 @@
   <div
     x-show="annTooltip.visible"
     :style="'position:fixed;left:' + annTooltip.x + 'px;top:' + annTooltip.y + 'px;z-index:9999;pointer-events:none'"
-    class="bg-gray-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-200 shadow-xl"
+    class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 shadow-xl"
   >
     <template x-if="annTooltip.seg">
       <div>
-        <p class="font-semibold text-white capitalize"
+        <p class="font-semibold text-slate-900 capitalize"
            x-text="(annTooltip.seg.type === 'exon' ? 'Exon ' : 'Intron ') + annTooltip.seg.number"></p>
-        <p class="text-slate-400 mt-0.5 font-mono text-[10px]">
+        <p class="text-slate-500 mt-0.5 font-mono text-[10px]">
           chr<span x-text="annGeneInfo.chromosome"></span>:<span x-text="annTooltip.seg.genomic_start?.toLocaleString()"></span>–<span x-text="annTooltip.seg.genomic_end?.toLocaleString()"></span>
         </p>
-        <p class="text-slate-400 text-[10px]"
+        <p class="text-slate-500 text-[10px]"
            x-text="((annTooltip.seg.genomic_end - annTooltip.seg.genomic_start + 1) || 0).toLocaleString() + ' bp'"></p>
       </div>
     </template>
@@ -878,7 +883,7 @@
         />
       </a>
 
-      <p class="text-xs text-slate-600 text-center">
+      <p class="text-xs text-slate-400 text-center">
         Data sourced from
         <a href="https://plants.ensembl.org" target="_blank" rel="noopener"
            class="text-accent-light hover:underline">Ensembl Plants</a>
