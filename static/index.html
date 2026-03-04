@@ -823,7 +823,7 @@
           <span class="inline-block w-3.5 h-3.5 rounded-sm bg-blue-200"></span>Exon (odd)
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-3.5 h-3.5 rounded-sm bg-sky-200"></span>Exon (even)
+          <span class="inline-block w-3.5 h-3.5 rounded-sm bg-red-200"></span>Exon (even)
         </span>
         <span class="flex items-center gap-1.5">
           <span class="inline-block w-3.5 h-3.5 rounded-sm bg-gray-200"></span>Intron / flanking
@@ -841,7 +841,7 @@
             <span
               :class="{
                 'bg-blue-200 text-gray-800':  seg.type === 'exon' && seg.number % 2 === 1,
-                'bg-sky-200  text-gray-800':  seg.type === 'exon' && seg.number % 2 === 0,
+                'bg-red-200  text-gray-800':  seg.type === 'exon' && seg.number % 2 === 0,
                 'bg-gray-200 text-gray-600':  seg.type === 'intron',
               }"
               class="cursor-default rounded-[2px]"
