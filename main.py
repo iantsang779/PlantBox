@@ -21,6 +21,7 @@ import httpx
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, model_validator
 
 from database import (
@@ -164,6 +165,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Wheat Variation Explorer", lifespan=lifespan)
 
 _STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
 # ---------------------------------------------------------------------------

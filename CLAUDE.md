@@ -62,6 +62,23 @@ Both pools are stored on `app.state` and passed explicitly into `fetch_and_join(
 
 `static/index.html` is a self-contained SPA loaded via `GET /`. It uses Tailwind CSS and Alpine.js from CDN (no build step). All state lives in the `dashboardApp()` Alpine component. Client-side sorting is computed in a `get sortedRows()` getter.
 
+### Annotate Sequence tab
+
+Endpoint: `POST /api/annotate` — accepts `{ gene_id: string }` (validated via `validate_input()`).
+
+**Backend flow:**
+1. Two concurrent `httpx` requests to the Ensembl Plants REST API (`rest.ensembl.org`):
+   - `GET /lookup/id/{gene_id}?expand=1` — gene metadata + transcript/exon coordinates
+   - `GET /sequence/id/{gene_id}?type=genomic` — full genomic sequence
+2. For each transcript, `_compute_segments()` maps exon coordinates onto the genomic sequence to produce a list of `{type, seq_start, seq_end, number}` segments (exon or intron). Canonical transcript is sorted first.
+3. Result (gene metadata + sequence + per-transcript segments) is stored in `_annotate_cache` (same TTL/eviction policy as `_result_cache`) and returned as an `AnnotateResponse`.
+
+**Frontend behaviour:**
+- Users enter an Ensembl gene ID (e.g. `TRAESCS3D02G273600`) and click **Annotate**.
+- A transcript selector dropdown lets users switch between transcripts; the canonical transcript is pre-selected.
+- The genomic sequence is rendered as colour-coded spans: odd exons (blue), even exons (sky), introns/flanking (grey).
+- Hovering a span shows a tooltip with segment type, exon/intron number, and length.
+
 ### Input validation
 
 All user inputs pass through `validate_input()` in `database.py` before query construction: max 100 chars, regex `^[\w.\-]+$`. SQL parameters are always passed via aiomysql parameterisation (never interpolated).

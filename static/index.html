@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wheat Variation Explorer</title>
+  <title>BioToolbox</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%23a78bfa' viewBox='0 0 24 24'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.8' d='M12 3v18M9 6c0 0-3 1-3 4s3 3 3 3M15 6c0 0 3 1 3 4s-3 3-3 3M9 13c0 0-3 1-3 4s3 3 3 3M15 13c0 0 3 1 3 4s-3 3-3 3'/%3E%3C/svg%3E" />
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -161,10 +162,10 @@
         </svg>
         <div>
           <h1 class="text-lg font-semibold text-white leading-tight">
-            Wheat Variation Explorer
+            BioToolbox- Open Source Bioinformatics Tools
           </h1>
           <p class="text-xs text-slate-400 mt-0.5">
-            EBI Ensembl Plants — Variants &amp; KASP Markers
+            Powered by EMBL-EBI Data
           </p>
         </div>
       </div>
@@ -216,7 +217,11 @@
   <main class="max-w-7xl mx-auto px-6 py-8 space-y-6">
 
   <!-- ── Variant Explorer Tab ───────────────────────────────── -->
-  <div x-show="activeTab === 'variants'">
+  <div x-show="activeTab === 'variants'" class="space-y-6">
+
+    <p class="text-slate-400 text-sm my-4">
+      Search for genes associated with a specific wheat variant or a range of variants (e.g. <span class="text-slate-300 font-mono">Cadenza1714</span> for an exact match, or <span class="text-slate-300 font-mono">Cadenza17</span> to retrieve all variants sharing that prefix). Filter results by consequence type to narrow down functionally relevant mutations.
+    </p>
 
     <!-- ── Query Panel ───────────────────────────────────────── -->
     <section class="bg-surface-1 border border-surface-2 rounded-xl p-6 fade-in relative z-20">
@@ -520,6 +525,10 @@
   <!-- ── Sequence Retrieval Tab ────────────────────────────── -->
   <div x-show="activeTab === 'sequences'" class="space-y-6">
 
+    <p class="text-slate-400 text-sm my-4">
+      Blazingly fast, near real-time retrieval of CDS, genomic, protein, and cDNA sequences for any wheat gene or transcript. Results are returned directly from the EBI Ensembl REST API with minimal latency.
+    </p>
+
     <!-- Input panel -->
     <section class="bg-surface-1 border border-surface-2 rounded-xl p-6 fade-in">
       <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4">
@@ -659,6 +668,10 @@
 
   <!-- ── Annotate Sequence Tab ──────────────────────────────── -->
   <div x-show="activeTab === 'annotate'" class="space-y-6">
+
+    <p class="text-slate-400 text-sm my-4">
+      Pull exon and intron annotations for a given DNA sequence based on your query, and explore an interactive visualisation of the gene's exon–intron architecture.
+    </p>
 
     <!-- Input panel -->
     <section class="bg-surface-1 border border-surface-2 rounded-xl p-6 fade-in">
@@ -854,11 +867,33 @@
   <!-- ═══════════════════════════════════════════════════════════
        FOOTER
   ═══════════════════════════════════════════════════════════ -->
-  <footer class="border-t border-surface-2 mt-12 py-5 text-center text-xs text-slate-600">
-    Data sourced from
-    <a href="https://plants.ensembl.org" target="_blank" rel="noopener"
-       class="text-accent-light hover:underline">Ensembl Plants</a>
-    via the EBI public MySQL server.
+  <footer class="border-t border-surface-2 mt-12 py-5">
+    <div class="max-w-7xl mx-auto px-6 flex items-center justify-center gap-6">
+      <!-- EMBL-EBI logo -->
+      <a href="https://www.ebi.ac.uk" target="_blank" rel="noopener" class="flex-shrink-0 opacity-50 hover:opacity-80 transition-opacity">
+        <img
+          src="/static/EMBL_EBI-logo.png"
+          alt="EMBL-EBI"
+          class="h-8 w-auto"
+        />
+      </a>
+
+      <p class="text-xs text-slate-600 text-center">
+        Data sourced from
+        <a href="https://plants.ensembl.org" target="_blank" rel="noopener"
+           class="text-accent-light hover:underline">Ensembl Plants</a>
+        via the EMBL-EBI public SQL server and REST API.
+      </p>
+
+      <!-- Ensembl logo -->
+      <a href="https://plants.ensembl.org" target="_blank" rel="noopener" class="flex-shrink-0 opacity-50 hover:opacity-80 transition-opacity">
+        <img
+          src="/static/ensembl_logo-removebg-preview.png"
+          alt="Ensembl"
+          class="h-8 w-auto"
+        />
+      </a>
+    </div>
   </footer>
 
   <!-- ═══════════════════════════════════════════════════════════
