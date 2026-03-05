@@ -1146,7 +1146,23 @@
         </div>
 
         <!-- Alignment viewer -->
-        <section class="bg-surface-1 border border-surface-2 rounded-xl overflow-hidden">
+        <section
+          class="bg-surface-1 border border-surface-2 rounded-xl overflow-hidden"
+          x-init="$nextTick(() => {
+            const el = $refs.homoAlignContainer;
+            if (!el) return;
+            const update = () => {
+              const charSpan = $refs.homoCharMeasure;
+              const charW = charSpan ? charSpan.offsetWidth / 100 : 7.2;
+              const style = window.getComputedStyle(el);
+              const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+              const w = el.clientWidth - padding;
+              if (w > 0) homoLineWidth = Math.max(20, Math.floor(w / charW));
+            };
+            update();
+            new ResizeObserver(update).observe(el);
+          })"
+        >
           <button
             @click="homoAlignOpen = !homoAlignOpen"
             class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-surface-2 transition-colors"
@@ -1156,7 +1172,9 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
-          <div x-show="homoAlignOpen" class="px-5 pb-5">
+          <div x-show="homoAlignOpen" x-ref="homoAlignContainer" class="px-5 pb-5 relative">
+            <!-- Hidden element to measure monospace char width -->
+            <span x-ref="homoCharMeasure" aria-hidden="true" class="font-mono text-xs absolute top-0 left-0 opacity-0 pointer-events-none whitespace-pre">MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM</span>
             <template x-if="!homoSelectedRow">
               <p class="text-sm text-slate-400 italic mt-2">Click a row in the table below to view its pairwise alignment.</p>
             </template>
@@ -1175,9 +1193,18 @@
                     <p class="text-green-400 mt-0.5" x-text="'% id: ' + (homoSelectedRow.homolog_perc_id ?? '—')"></p>
                   </div>
                 </div>
-                <p class="text-xs text-slate-400 mb-2" x-text="'Type: ' + homoSelectedRow.homology_type"></p>
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-xs text-slate-400" x-text="'Type: ' + homoSelectedRow.homology_type"></p>
+                  <button
+                    @click="exportHomoAlignment()"
+                    class="btn-outline px-3 py-1 rounded-lg text-xs text-slate-600 flex items-center gap-1"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Export alignment (.txt)
+                  </button>
+                </div>
                 <!-- Alignment blocks -->
-                <div class="overflow-x-auto">
+                <div>
                   <template x-for="(block, bi) in homoAlignmentBlocks" :key="bi">
                     <div class="font-mono text-xs leading-5 mb-3">
                       <div class="text-blue-700 whitespace-pre" x-text="block.queryLine"></div>
@@ -1375,6 +1402,7 @@
         homoPageSize:      30,
         homoSelectedRow:   null,
         homoAlignOpen:     true,
+        homoLineWidth:     80,
 
         // ── Annotate Protein tab — state ─────────────────────────
         paGeneId:        '',
@@ -1473,8 +1501,8 @@
         },
 
         parseCigar(cigar) {
-          const tokens = []; const re = /(\d+)([A-Z])/g; let m;
-          while ((m = re.exec(cigar)) !== null) tokens.push([parseInt(m[1], 10), m[2]]);
+          const tokens = []; const re = /(\d*)([A-Z])/g; let m;
+          while ((m = re.exec(cigar)) !== null) tokens.push([m[1] ? parseInt(m[1], 10) : 1, m[2]]);
           return tokens;
         },
 
@@ -1493,7 +1521,7 @@
           const qAligned = this.buildAligned(row.query_sequence || '', row.query_cigar_line);
           const hAligned = this.buildAligned(row.homolog_sequence || '', row.homolog_cigar_line);
           const len = Math.max(qAligned.length, hAligned.length);
-          const lineWidth = 60;
+          const lineWidth = this.homoLineWidth || 80;
           const blocks = [];
           for (let i = 0; i < len; i += lineWidth) {
             const qLine = qAligned.slice(i, i + lineWidth);
@@ -1746,6 +1774,7 @@
           this.homoCurrentPage    = 1;
           this.homoSelectedRow    = null;
           this.homoAlignOpen      = true;
+          this.homoLineWidth      = 80;
         },
 
         selectHomoRow(row) {
@@ -1771,6 +1800,30 @@
         downloadHomoExcel() {
           if (!this.homoToken) return;
           window.location.href = `/api/download/excel/${this.homoToken}`;
+        },
+
+        exportHomoAlignment() {
+          const row = this.homoSelectedRow;
+          if (!row) return;
+          const lines = [
+            `Query:   ${row.query_gene_id}  (${row.query_species})  %id: ${row.query_perc_id ?? '—'}`,
+            `Homolog: ${row.homolog_gene_id}  (${row.homolog_species})  %id: ${row.homolog_perc_id ?? '—'}`,
+            `Type:    ${row.homology_type}`,
+            '',
+          ];
+          for (const block of this.homoAlignmentBlocks) {
+            lines.push(block.queryLine);
+            lines.push(block.matchLine);
+            lines.push(block.homoLine);
+            lines.push('');
+          }
+          const blob = new Blob([lines.join('\n')], {type: 'text/plain'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `alignment_${row.query_gene_id}_${row.homolog_gene_id}.txt`;
+          a.click();
+          URL.revokeObjectURL(url);
         },
 
         resetState() {
