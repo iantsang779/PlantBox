@@ -113,14 +113,17 @@ Endpoint: `POST /api/homology` — accepts `{ gene_id: string, homology_type: st
 1. Validate `gene_id` and `homology_type`; query `compara_pool` via `fetch_homologs()` in `database.py`.
 2. `fetch_homologs()` builds a parameterised `OR`-chain of `h.description = %s` clauses from `_HOMOLOGY_SQL` and queries `homology → homology_member → gene_member / genome_db / seq_member / sequence` (joined twice — once for query, once for homologue).
 3. Bytes in `query_sequence`, `homolog_sequence`, `query_cigar_line`, `homolog_cigar_line` are decoded UTF-8 if returned as `bytes` (latin1 charset edge case).
-4. All 11 columns (including sequences and CIGAR lines) are cached under a UUID token via `_cache_store`; `/api/download/csv` and `/api/download/excel` are reused unchanged.
+4. All 11 columns (including sequences and CIGAR lines) are cached under a UUID token via `_cache_store` with `filename="{gene_id}_homology"`; `/api/download/csv` and `/api/download/excel` are reused unchanged and derive the filename from the cache entry.
 5. Response includes `display_columns` (7 cols, no sequences) and `all_columns` (11 cols).
+
+**Download filename convention** — `_cache_store` accepts an optional `filename` parameter (default `"wheat_variants"`). The homology endpoint passes `"{gene_id}_homology"`, producing e.g. `TRAESCS3D02G273600_homology.csv`.
 
 **Frontend behaviour:**
 - Users enter a gene ID and select a homology type from a dropdown, then click **Search**.
 - Results table shows 7 display columns; rows are clickable to populate the alignment viewer.
-- Alignment viewer reconstructs pairwise alignments client-side from CIGAR strings (`M` = consume residue, `D` = insert gap). Alignment is wrapped at 60 chars per line with `|` match markers between query (blue) and homologue (green).
-- CSV/Excel downloads include all 11 columns (sequences + CIGARs).
+- Alignment viewer reconstructs pairwise alignments client-side from CIGAR strings (`M` = consume residue, `D` = insert gap). A bare operation letter with no preceding digit (e.g. `D` in `697MD153M`) is treated as count 1 by `parseCigar`. Alignment wraps to the container width measured via `ResizeObserver` against a hidden monospace span (`homoLineWidth`), with `|` match markers between query (blue) and homologue (green).
+- "Export alignment (.txt)" button triggers a client-side Blob download of the formatted alignment text.
+- CSV/Excel downloads include all 11 columns (sequences + CIGARs) and are named `{gene_id}_homology.csv/.xlsx`.
 
 ### Input validation
 
