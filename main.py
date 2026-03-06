@@ -390,6 +390,10 @@ class PrimerPair(BaseModel):
     left_self_any: float
     right_self_any: float
     pair_penalty: float
+    left_alt_tm: float | None = None
+    left_alt_gc: float | None = None
+    left_alt_hairpin_tm: float | None = None
+    left_alt_self_any: float | None = None
 
 
 class PrimerResponse(BaseModel):
@@ -900,6 +904,7 @@ async def fetch_homology(request: HomologyRequest):
 @app.post("/api/primers", response_model=PrimerResponse)
 async def design_primers(req: PrimerRequest):
     import primer3
+    import warnings
 
     try:
         validate_input(req.variant_name, "variant_name")
@@ -965,7 +970,7 @@ async def design_primers(req: PrimerRequest):
 
     num_returned = p3.get("PRIMER_PAIR_NUM_RETURNED", 0)
     if num_returned == 0:
-        raise HTTPException(status_code=422, detail={"error": "Primer3 could not design primers for this region. Try increasing the flanking window or relaxing Tm constraints."})
+        raise HTTPException(status_code=422, detail={"error": "Primer3 could not design primers for this region."})
 
     pairs = []
     for i in range(num_returned):
@@ -973,9 +978,16 @@ async def design_primers(req: PrimerRequest):
         if req.primer_type == "kasp":
             left_ref = left_seq[:-1] + ref
             left_alt = left_seq[:-1] + alt
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                _alt_tm = round(primer3.bindings.calcTm(left_alt), 2)
+                _alt_gc = round((left_alt.upper().count('G') + left_alt.upper().count('C')) / len(left_alt) * 100, 1)
+                _alt_hairpin_tm = round(max(primer3.bindings.calcHairpin(left_alt).tm, 0.0), 2)
+                _alt_self_any = round(max(primer3.bindings.calcHomodimer(left_alt).tm, 0.0), 2)
         else:
             left_ref = left_seq
             left_alt = None
+            _alt_tm = _alt_gc = _alt_hairpin_tm = _alt_self_any = None
 
         l_start, l_len = p3[f"PRIMER_LEFT_{i}"]
         r_start, r_len = p3[f"PRIMER_RIGHT_{i}"]
@@ -997,6 +1009,10 @@ async def design_primers(req: PrimerRequest):
             left_self_any=round(p3.get(f"PRIMER_LEFT_{i}_SELF_ANY_TH", 0.0), 2),
             right_self_any=round(p3.get(f"PRIMER_RIGHT_{i}_SELF_ANY_TH", 0.0), 2),
             pair_penalty=round(p3[f"PRIMER_PAIR_{i}_PENALTY"], 4),
+            left_alt_tm=_alt_tm,
+            left_alt_gc=_alt_gc,
+            left_alt_hairpin_tm=_alt_hairpin_tm,
+            left_alt_self_any=_alt_self_any,
         ))
 
     return PrimerResponse(

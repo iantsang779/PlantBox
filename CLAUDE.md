@@ -144,15 +144,15 @@ The landing page card is titled **Variant Explorer & KASP Primer Design**. The p
 3. Run `primer3.bindings.design_primers()` via `asyncio.to_thread()` (synchronous call — offloaded to avoid blocking the event loop).
    - KASP mode: `SEQUENCE_FORCE_LEFT_END = snp_offset` forces the 3′ end of the left primer to sit exactly at the SNP.
    - PCR mode: `SEQUENCE_TARGET = [[snp_offset, 1]]` requires primers to flank the SNP.
-4. For KASP pairs, `left_ref_seq` and `left_alt_seq` are derived by replacing the 3′ base of the designed left primer with the REF and ALT alleles respectively.
-5. Returns `PrimerResponse` with `flanking_seq`, `snp_offset`, and up to `num_pairs` `PrimerPair` objects (Tm, GC%, hairpin Tm, self-complementarity, penalty).
+4. For KASP pairs, `left_ref_seq` and `left_alt_seq` are derived by replacing the 3′ base of the designed left primer with the REF and ALT alleles respectively. Thermodynamic properties for the ALT primer (`left_alt_tm`, `left_alt_gc`, `left_alt_hairpin_tm`, `left_alt_self_any`) are independently computed via `primer3.bindings.calcTm`, `calcHairpin`, `calcHomodimer`, and direct GC-count.
+5. Returns `PrimerResponse` with `flanking_seq`, `snp_offset`, and up to `num_pairs` `PrimerPair` objects (Tm, GC%, hairpin Tm, self-complementarity, penalty for both REF and ALT left primers in KASP mode).
 
 **`_VARIANT_SQL_BASE`** includes `b.allele_string` (DNA-level alleles, e.g. `"A/T"`).
 
 **Frontend behaviour:**
 - Every row in the Variant Explorer table is clickable; clicking triggers `selectVariantForPrimers(row)` → `fetchPrimers()` automatically. Clicking the same row again deselects and closes the panel.
 - The primer panel header shows `Primer Design — {Variant} — {feature_stable_id}`.
-- The panel contains: KASP/PCR toggle, loading/error state, SVG diagram, pair navigator (1–5), REF/ALT/Rev primer cards with stats, product size/penalty, CSV export.
+- The panel contains: KASP/PCR toggle, loading/error state, SVG diagram, pair navigator (1–5), REF/ALT/Rev primer cards each with Tm/GC/Hairpin/Self-comp/Len stats, product size/penalty, CSV export.
 - **Primer sequence display:** sequences in cards are rendered via `primerSeqHtml()` (adds `5'—` / `—3'` annotations) or `kaspSeqHtml()` (same, plus bolds the 3′ differentiating base for KASP REF/ALT primers).
 - **`buildPrimerSVG()`** generates an inline SVG showing:
   - Top strand (5′→3′): actual nucleotide sequence from `flanking_seq`; left primer region coloured blue (REF/Fwd), context in grey
