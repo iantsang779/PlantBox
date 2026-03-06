@@ -2306,38 +2306,117 @@
         buildPrimerSVG(result, pairIdx) {
           const pair = result.primer_pairs[pairIdx];
           if (!pair) return '';
-          const total = result.flanking_seq.length;
-          const W = 580, H = 80;
-          const toX = pos => Math.round((pos / total) * W) + 10;
-          const snpX = toX(result.snp_offset);
 
-          const lx1 = toX(pair.left_start);
-          const lx2 = toX(pair.left_start + pair.left_length);
-          const rx2 = toX(pair.right_start + 1);
-          const rx1 = toX(pair.right_start - pair.right_length + 1);
+          const isKasp   = result.primer_type === 'kasp';
+          const flanking = result.flanking_seq;
+          const total    = flanking.length;
 
-          const arrow = (x1, x2, y, color, label) => {
-            const dir = x2 > x1 ? 1 : -1;
-            return `<line x1="${x1}" y1="${y}" x2="${x2 - dir * 6}" y2="${y}" stroke="${color}" stroke-width="6" stroke-linecap="round"/>
-                    <polygon points="${x2},${y} ${x2 - dir * 10},${y - 5} ${x2 - dir * 10},${y + 5}" fill="${color}"/>
-                    <text x="${(x1 + x2) / 2}" y="${y - 9}" text-anchor="middle" font-size="9" fill="${color}">${label}</text>`;
-          };
+          // Base complement map
+          const COMP = {A:'T',T:'A',G:'C',C:'G',N:'N'};
 
-          let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 600 ${H}" font-family="monospace">`;
-          svg += `<line x1="10" y1="40" x2="590" y2="40" stroke="#cbd5e1" stroke-width="2"/>`;
-          svg += `<line x1="${snpX}" y1="24" x2="${snpX}" y2="56" stroke="#ef4444" stroke-width="2" stroke-dasharray="3,2"/>`;
-          svg += `<text x="${snpX}" y="70" text-anchor="middle" font-size="9" fill="#ef4444">${result.allele_string}</text>`;
-          svg += `<line x1="${lx1}" y1="14" x2="${rx2}" y2="14" stroke="#94a3b8" stroke-width="1"/>`;
-          svg += `<text x="${(lx1 + rx2) / 2}" y="11" text-anchor="middle" font-size="8" fill="#94a3b8">${pair.product_size} bp</text>`;
-          if (result.primer_type === 'kasp') {
-            svg += arrow(lx1, lx2, 35, '#2563eb', 'Fwd-REF');
-            svg += arrow(lx1, lx2, 47, '#ea580c', 'Fwd-ALT');
-          } else {
-            svg += arrow(lx1, lx2, 40, '#2563eb', 'Fwd');
+          // Primer bounds (0-indexed in flanking_seq)
+          const lpS = pair.left_start;
+          const lpE = lpS + pair.left_length;           // exclusive
+          const rpS = pair.right_start - pair.right_length + 1;
+          const rpE = pair.right_start + 1;             // exclusive
+
+          // Display region: product + 3 bp context each side
+          const CTX = 3;
+          const dS  = Math.max(0, lpS - CTX);
+          const dE  = Math.min(total, rpE + CTX);
+          const top = flanking.slice(dS, dE).toUpperCase();
+          const bot = top.split('').map(c => COMP[c] || 'N').join('');
+          const nC  = top.length;
+
+          // Layout constants
+          const CW  = 7;     // character width px (monospace font-size 11 ≈ 6.6 px)
+          const FS  = 11;
+          const ML  = 20;    // left margin for strand labels
+          const MR  = 14;    // right margin
+          const W   = ML + nC * CW + MR;
+
+          // Y positions
+          const Y_TOP     = 30;
+          const Y_ALT     = 46;                      // KASP ALT primer row
+          const Y_BOT     = isKasp ? 62 : 48;        // bottom strand
+          const Y_SNP_LBL = Y_BOT + 16;
+          const Y_LEG     = Y_SNP_LBL + 13;
+          const H         = Y_LEG + 14;
+
+          // x-centre for a given position in flanking_seq space
+          const xC = pos => ML + (pos - dS + 0.5) * CW;
+          const snpX = xC(result.snp_offset);
+
+          let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(W)}" height="${H}" font-family="monospace" font-size="${FS}">`;
+
+          // ── Product size bracket ────────────────────────────────────
+          const bL = xC(lpS) - CW / 2, bR = xC(rpE - 1) + CW / 2;
+          s += `<line x1="${bL}" y1="13" x2="${bR}" y2="13" stroke="#94a3b8" stroke-width="1"/>`;
+          s += `<line x1="${bL}" y1="10" x2="${bL}" y2="16" stroke="#94a3b8" stroke-width="1"/>`;
+          s += `<line x1="${bR}" y1="10" x2="${bR}" y2="16" stroke="#94a3b8" stroke-width="1"/>`;
+          s += `<text x="${(bL+bR)/2}" y="9" text-anchor="middle" font-size="8" fill="#94a3b8" font-family="sans-serif">${pair.product_size} bp</text>`;
+
+          // ── SNP dashed line spanning both strands ───────────────────
+          s += `<line x1="${snpX}" y1="${Y_TOP-7}" x2="${snpX}" y2="${Y_BOT+7}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="2,2"/>`;
+
+          // ── Strand direction labels ─────────────────────────────────
+          const lbl = (x, y, t, fill='#64748b') =>
+            `<text x="${x}" y="${y}" font-size="8" fill="${fill}" font-family="sans-serif">${t}</text>`;
+          s += lbl(0, Y_TOP+3, "5'");
+          s += lbl(W-MR+2, Y_TOP+3, "3'");
+          s += lbl(0, Y_BOT+3, "3'");
+          s += lbl(W-MR+2, Y_BOT+3, "5'");
+
+          // ── Top strand (REF / FWD primer in blue) ──────────────────
+          for (let i = 0; i < nC; i++) {
+            const pos = dS + i;
+            const cx  = ML + (i + 0.5) * CW;
+            const inL = pos >= lpS && pos < lpE;
+            s += `<text x="${cx}" y="${Y_TOP+3}" text-anchor="middle" fill="${inL ? '#2563eb' : '#9ca3af'}">${top[i]}</text>`;
           }
-          svg += arrow(rx2, rx1, 40, '#16a34a', 'Rev');
-          svg += '</svg>';
-          return svg;
+
+          // ── KASP ALT primer row (orange, primer region only) ────────
+          if (isKasp) {
+            const altSeq = (pair.left_alt_seq || '').toUpperCase();
+            for (let i = 0; i < nC; i++) {
+              const pos = dS + i;
+              const cx  = ML + (i + 0.5) * CW;
+              if (pos >= lpS && pos < lpE) {
+                const ch = altSeq[pos - lpS] || top[i];
+                s += `<text x="${cx}" y="${Y_ALT+3}" text-anchor="middle" fill="#ea580c">${ch}</text>`;
+              }
+            }
+          }
+
+          // ── Bottom strand (REV primer in green) ─────────────────────
+          for (let i = 0; i < nC; i++) {
+            const pos = dS + i;
+            const cx  = ML + (i + 0.5) * CW;
+            const inR = pos >= rpS && pos < rpE;
+            s += `<text x="${cx}" y="${Y_BOT+3}" text-anchor="middle" fill="${inR ? '#16a34a' : '#9ca3af'}">${bot[i]}</text>`;
+          }
+
+          // ── Allele annotation below SNP ─────────────────────────────
+          s += `<text x="${snpX}" y="${Y_SNP_LBL}" text-anchor="middle" font-size="8" fill="#ef4444" font-family="sans-serif">${result.allele_string}</text>`;
+
+          // ── Legend (matplotlib-style coloured squares + labels) ─────
+          let lx = 4;
+          const addLeg = (color, label) => {
+            s += `<rect x="${lx}" y="${Y_LEG}" width="8" height="8" fill="${color}" rx="1"/>`;
+            s += `<text x="${lx+11}" y="${Y_LEG+7}" font-size="8" fill="#374151" font-family="sans-serif">${label}</text>`;
+            lx += 11 + label.length * 5.2 + 8;
+          };
+          if (isKasp) {
+            addLeg('#2563eb', 'Fwd \u2014 REF allele');
+            addLeg('#ea580c', 'Fwd \u2014 ALT allele');
+          } else {
+            addLeg('#2563eb', 'Forward primer');
+          }
+          addLeg('#16a34a', isKasp ? 'Common reverse' : 'Reverse primer');
+          addLeg('#ef4444', 'SNP');
+
+          s += '</svg>';
+          return s;
         },
 
         exportPrimers() {
