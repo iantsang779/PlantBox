@@ -159,7 +159,8 @@ Endpoint: `POST /api/homology` — accepts `{ gene_id: string, homology_type: st
 - Users enter a gene ID and select a homology type from a dropdown, then click **Search**.
 - Results table shows 7 display columns; rows are clickable to populate the alignment viewer.
 - Alignment viewer reconstructs pairwise alignments client-side from CIGAR strings (`M` = consume residue, `D` = insert gap). A bare operation letter with no preceding digit (e.g. `D` in `697MD153M`) is treated as count 1 by `parseCigar`. Alignment wraps to the container width measured via `ResizeObserver` against a hidden monospace span (`homoLineWidth`), with `|` match markers between query (blue) and homologue (green).
-- "Export alignment (.txt)" button triggers a client-side Blob download of the formatted alignment text.
+- **Alignment summary statistics table** — rendered below the alignment blocks via `homoAlignmentStats` computed getter. Columns: Metric / Query / Homolog. Rows: Sequence length, Aligned length, Matches, Mismatches, Gaps, Identity %, Residue composition (letter:count A-Z). All computed from the CIGAR-reconstructed aligned strings. Table only renders when CIGAR data is present (`x-if="homoAlignmentStats"`).
+- "Export alignment (.txt)" button triggers a client-side Blob download; the stats block is appended after the alignment blocks using fixed-width column formatting.
 - CSV/Excel downloads include all 11 columns (sequences + CIGARs) and are named `{gene_id}_homology.csv/.xlsx`.
 
 ### System Architecture tab

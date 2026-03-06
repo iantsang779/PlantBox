@@ -295,12 +295,12 @@
             <span class="text-base font-bold text-accent">Pull Homologous Sequences</span>
             <p class="text-sm text-slate-700 mt-1.5 text-justify">
               Returns all orthologues, homoeologues, or paralogues of a gene, including sequences not shown in the Ensembl browser.
-              An interactive pairwise alignment viewer reconstructs alignments from CIGAR strings client-side.
+              An interactive pairwise alignment viewer reconstructs alignments from CIGAR strings client-side, with a summary statistics table showing identity %, matches, mismatches, gaps, and residue composition.
             </p>
           </div>
           <div class="text-xs text-slate-500 space-y-1 border-t border-surface-2 pt-3 text-justify">
             <p><span class="font-semibold text-slate-600">How it works:</span> Queries the Ensembl Compara Plants database; alignments are reconstructed from CIGAR strings in the browser — no alignment algorithm is executed server-side.</p>
-            <p><span class="font-semibold text-slate-600">Note:</span> One gene ID at a time; CSV/Excel downloads include full sequences and CIGAR lines.</p>
+            <p><span class="font-semibold text-slate-600">Note:</span> One gene ID at a time; CSV/Excel downloads include full sequences and CIGAR lines. The .txt alignment export includes the full statistics table.</p>
           </div>
           <button @click="activeTab = 'homology'" class="btn-primary mt-auto text-white text-sm font-medium rounded-lg px-4 py-2 self-start">
             Open tool &rarr;
@@ -1825,7 +1825,7 @@
                 <td class="py-2 align-top text-justify space-y-1">
                   <p><strong>compara_pool</strong> → <span class="font-mono">ensembl_compara_plants_*</span> — Ensembl Compara database containing homology relationships, CIGAR alignments, and member sequences.</p>
                   <p><strong>_result_cache</strong> — shared with the Variant Explorer (keyed independently by UUID token).</p>
-                  <p>Frontend reconstructs pairwise alignments client-side from CIGAR strings (<code>M</code> = consume residue, <code>D</code> = insert gap). Alignment wraps to container width via ResizeObserver.</p>
+                  <p>Frontend reconstructs pairwise alignments client-side from CIGAR strings (<code>M</code> = consume residue, <code>D</code> = insert gap). Alignment wraps to container width via ResizeObserver. A summary statistics table below the alignment blocks shows identity %, matches, mismatches, query/homolog gap counts, sequence lengths, aligned length, and residue composition — all computed client-side from the aligned sequences. These stats are also appended to the .txt export.</p>
                 </td>
               </tr>
             </tbody>
