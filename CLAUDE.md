@@ -60,7 +60,7 @@ Apply this standard when:
 
 ## Git workflow
 
-After completing any change to the codebase, stage the relevant files and **ask the user for permission before committing**. Once approved, commit with a concise message in this format:
+After completing any change to the codebase, stage the relevant files and commit without asking for permission. Write commit messages in this format:
 
 ```
 <type>: <short imperative summary>
