@@ -170,7 +170,7 @@
             PlantBox — Open Source Tools for Plant Bioinformatics
           </h1>
           <p class="text-xs text-slate-500 mt-0.5">
-            Powered by open source data from European Molecular Biology Laboratory - European Bioinformatics Institute (EMBL-EBI).
+            Powered by open source data from the European Molecular Biology Laboratory - European Bioinformatics Institute (EMBL-EBI).
           </p>
         </div>
       </button>
@@ -203,7 +203,7 @@
       <h2 class="text-6xl font-bold text-slate-900 mb-3">PlantBox</h2>
       <p class="text-2xl text-accent font-medium mb-7">Open Source Tools for Plant Bioinformatics</p>
       <p class="max-w-4xl mx-auto text-slate-600 text-sm leading-relaxed text-justify">
-        PlantBox is a lightweight interface for exploring plant genomic data hosted on Ensembl (EMBL-EBI).
+        PlantBox is a lightweight interface for exploring plant genomic data hosted on Ensembl at EMBL-EBI.
         It queries the most recent EMBL-EBI SQL databases and REST APIs directly, offering an efficient alternative to manual queries through the Ensembl browser. PlantBox also provides additional features not available through Ensembl. 
         <br><br>
         The open source nature of bioinformatics data provides a wealth of opportunity to develop new features and tools to streamline research and scientific enquiry. If you have suggestions or feedback, please get in touch below.
@@ -1493,6 +1493,56 @@
                     </div>
                   </template>
                 </div>
+                <!-- Alignment summary statistics -->
+                <template x-if="homoAlignmentStats">
+                  <div class="mt-4 border-t border-surface-2 pt-4">
+                    <p class="text-xs font-semibold text-slate-600 mb-2">Alignment Summary</p>
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-xs border-collapse">
+                        <thead>
+                          <tr class="bg-surface-2">
+                            <th class="px-3 py-1.5 text-left font-semibold text-slate-600 border border-surface-2">Metric</th>
+                            <th class="px-3 py-1.5 text-left font-semibold text-blue-700 border border-surface-2">Query</th>
+                            <th class="px-3 py-1.5 text-left font-semibold text-green-700 border border-surface-2">Homolog</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr class="border-t border-surface-2">
+                            <td class="px-3 py-1.5 text-slate-600 border border-surface-2">Sequence length</td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2" x-text="homoAlignmentStats.queryLen"></td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2" x-text="homoAlignmentStats.homologLen"></td>
+                          </tr>
+                          <tr class="border-t border-surface-2 bg-surface-2/40">
+                            <td class="px-3 py-1.5 text-slate-600 border border-surface-2">Aligned length</td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2" colspan="2" x-text="homoAlignmentStats.alignedLen"></td>
+                          </tr>
+                          <tr class="border-t border-surface-2">
+                            <td class="px-3 py-1.5 text-slate-600 border border-surface-2">Matches</td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2" colspan="2" x-text="homoAlignmentStats.matches"></td>
+                          </tr>
+                          <tr class="border-t border-surface-2 bg-surface-2/40">
+                            <td class="px-3 py-1.5 text-slate-600 border border-surface-2">Mismatches</td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2" colspan="2" x-text="homoAlignmentStats.mismatches"></td>
+                          </tr>
+                          <tr class="border-t border-surface-2">
+                            <td class="px-3 py-1.5 text-slate-600 border border-surface-2">Gaps</td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2" x-text="homoAlignmentStats.queryGaps"></td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2" x-text="homoAlignmentStats.homologGaps"></td>
+                          </tr>
+                          <tr class="border-t border-surface-2 bg-surface-2/40">
+                            <td class="px-3 py-1.5 text-slate-600 border border-surface-2">Identity %</td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2" colspan="2" x-text="homoAlignmentStats.identity + '%'"></td>
+                          </tr>
+                          <tr class="border-t border-surface-2">
+                            <td class="px-3 py-1.5 text-slate-600 border border-surface-2 align-top">Residue composition</td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2 text-blue-700 break-all" x-text="homoAlignmentStats.queryComp"></td>
+                            <td class="px-3 py-1.5 font-mono border border-surface-2 text-green-700 break-all" x-text="homoAlignmentStats.homologComp"></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </template>
               </div>
             </template>
           </div>
@@ -2197,6 +2247,39 @@
           return blocks;
         },
 
+        get homoAlignmentStats() {
+          const row = this.homoSelectedRow;
+          if (!row || !row.query_cigar_line || !row.homolog_cigar_line) return null;
+          const qAligned = this.buildAligned(row.query_sequence || '', row.query_cigar_line);
+          const hAligned = this.buildAligned(row.homolog_sequence || '', row.homolog_cigar_line);
+          const alignedLen = Math.max(qAligned.length, hAligned.length);
+          let matches = 0, mismatches = 0, queryGaps = 0, homologGaps = 0;
+          for (let i = 0; i < alignedLen; i++) {
+            const q = qAligned[i] ?? '-', h = hAligned[i] ?? '-';
+            if (q === '-') { queryGaps++; }
+            else if (h === '-') { homologGaps++; }
+            else if (q === h) { matches++; }
+            else { mismatches++; }
+          }
+          const comp = seq => {
+            const freq = {};
+            for (const c of seq) if (c !== '-') freq[c] = (freq[c] || 0) + 1;
+            return Object.keys(freq).sort().map(k => `${k}:${freq[k]}`).join('  ');
+          };
+          return {
+            queryLen: (row.query_sequence || '').length,
+            homologLen: (row.homolog_sequence || '').length,
+            alignedLen,
+            matches,
+            mismatches,
+            queryGaps,
+            homologGaps,
+            identity: alignedLen > 0 ? ((matches / alignedLen) * 100).toFixed(1) : '0.0',
+            queryComp: comp(row.query_sequence || ''),
+            homologComp: comp(row.homolog_sequence || ''),
+          };
+        },
+
         get annCurrentSegments() {
           const tx = this.annTranscripts.find(t => t.transcript_id === this.annSelectedTranscript);
           return tx ? tx.segments : [];
@@ -2467,6 +2550,7 @@
         exportHomoAlignment() {
           const row = this.homoSelectedRow;
           if (!row) return;
+          const stats = this.homoAlignmentStats;
           const lines = [
             `Query:   ${row.query_gene_id}  (${row.query_species})  %id: ${row.query_perc_id ?? '—'}`,
             `Homolog: ${row.homolog_gene_id}  (${row.homolog_species})  %id: ${row.homolog_perc_id ?? '—'}`,
@@ -2478,6 +2562,24 @@
             lines.push(block.matchLine);
             lines.push(block.homoLine);
             lines.push('');
+          }
+          if (stats) {
+            const col = (s, w) => s.toString().padEnd(w);
+            lines.push('--- Alignment Summary ---');
+            lines.push(col('Metric', 22) + col('Query', 12) + 'Homolog');
+            lines.push('-'.repeat(60));
+            lines.push(col('Sequence length', 22) + col(stats.queryLen, 12) + stats.homologLen);
+            lines.push(col('Aligned length', 22) + stats.alignedLen);
+            lines.push(col('Matches', 22) + stats.matches);
+            lines.push(col('Mismatches', 22) + stats.mismatches);
+            lines.push(col('Gaps', 22) + col(stats.queryGaps, 12) + stats.homologGaps);
+            lines.push(col('Identity %', 22) + stats.identity + '%');
+            lines.push('');
+            lines.push('Residue composition (Query):');
+            lines.push(stats.queryComp);
+            lines.push('');
+            lines.push('Residue composition (Homolog):');
+            lines.push(stats.homologComp);
           }
           const blob = new Blob([lines.join('\n')], {type: 'text/plain'});
           const url = URL.createObjectURL(blob);
