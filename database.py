@@ -255,7 +255,11 @@ async def fetch_and_join(
     has_markers = bool(rows2)
 
     if rows2:
-        df2 = pd.DataFrame(rows2).rename(columns={"name": "variant_name"})
+        df2 = pd.DataFrame(rows2).rename(columns={
+            "name": "variant_name",
+            "left_primer": "BBSRC WRC Left Primer",
+            "right_primer": "BBSRC WRC Right Primer",
+        })
         merged = pd.merge(df1, df2, on="variant_name", how="left")
     else:
         merged = df1

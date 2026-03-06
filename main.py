@@ -53,6 +53,33 @@ _MAX_SEQUENCE_IDS     = 50
 _ENSEMBL_TIMEOUT_SECS = 30.0
 _VALID_SEQ_TYPES      = {"genomic", "cdna", "cds", "protein"}
 
+async def _fetch_strandedness(transcript_ids: list[str]) -> dict[str, str]:
+    """
+    Batch-fetch strand info from the Ensembl REST POST /lookup/id endpoint.
+    Returns a dict mapping transcript_id → "Forward" | "Reverse".
+    Failures are silently swallowed; missing IDs will receive no Strandedness value.
+    """
+    if not transcript_ids:
+        return {}
+    try:
+        async with httpx.AsyncClient(timeout=_ENSEMBL_TIMEOUT_SECS) as client:
+            resp = await client.post(
+                f"{ENSEMBL_REST_BASE}/lookup/id",
+                headers={"Accept": "application/json", "Content-Type": "application/json"},
+                json={"ids": transcript_ids},
+            )
+        if resp.status_code != 200:
+            return {}
+        data = resp.json()
+        result: dict[str, str] = {}
+        for tid, info in data.items():
+            if isinstance(info, dict) and "strand" in info:
+                result[tid] = "Forward" if info["strand"] == 1 else "Reverse"
+        return result
+    except Exception:
+        return {}
+
+
 # {token: {"data": list[dict], "columns": list[str], "ts": float}}
 _result_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
@@ -438,6 +465,12 @@ async def run_query(request: QueryRequest):
             status_code=500,
             detail={"error": f"Database error: {exc}"},
         )
+
+    # Fetch strandedness from Ensembl REST and insert after feature_stable_id
+    unique_ids = df["feature_stable_id"].dropna().unique().tolist()
+    strand_map = await _fetch_strandedness(unique_ids)
+    insert_pos = df.columns.tolist().index("feature_stable_id") + 1
+    df.insert(insert_pos, "Strandedness", df["feature_stable_id"].map(strand_map))
 
     # Serialise — replace NaN with None for JSON compatibility
     rows: list[dict] = df.where(pd.notna(df), other=None).to_dict(orient="records")
