@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlantBox — System Architecture</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #0f172a;
+    color: white;
+    padding: 16px 28px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 3px solid #1e3a5f;
+  }
+  header h1 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  header p  { font-size: 13px; color: #94a3b8; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    padding: 12px 28px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+  }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  .diagram-scroll { overflow: auto; padding: 28px 28px 48px; }
+
+  .diagram {
+    position: relative;
+    width: 1240px;
+    height: 850px;
+  }
+
+  .arrows-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /* Column header labels */
+  .col-label {
+    position: absolute;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding: 3px 7px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+
+  /* Host badge (below col label) */
+  .host-badge {
+    position: absolute;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* ── Node base ── */
+  .node {
+    position: absolute;
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.45;
+    cursor: default;
+    user-select: none;
+    border: 1.5px solid transparent;
+    transition: transform 0.12s, box-shadow 0.12s, opacity 0.15s;
+  }
+  .node small {
+    font-size: 10px;
+    font-weight: 400;
+    display: block;
+    margin-top: 1px;
+    opacity: 0.8;
+  }
+  .node:hover { transform: translateY(-1px); }
+
+  /* ── Node colours ── */
+  .spa    { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+  .route  { background: #ede9fe; border-color: #c4b5fd; color: #5b21b6; }
+  .cache  { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+  .mysql  { background: #dcfce7; border-color: #86efac; color: #166534; }
+  .rest   { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
+  .p3     { background: #ffe4e6; border-color: #fda4af; color: #9f1239; }
+  .helper { background: #f1f5f9; border-color: #cbd5e1; color: #334155; }
+
+  /* Highlight states */
+  .node.dimmed { opacity: 0.12 !important; transform: none !important; }
+  .node.lit    {
+    opacity: 1 !important;
+    box-shadow: 0 0 0 2.5px #0f172a, 0 4px 16px rgba(0,0,0,0.18);
+  }
+
+  /* ── Arrows ── */
+  .arrow {
+    fill: none;
+    stroke-width: 1.5;
+    opacity: 0.3;
+    transition: opacity 0.12s, stroke-width 0.12s;
+  }
+  .arrow.lit { opacity: 0.95; stroke-width: 2.5; }
+
+  /* ── Tooltip ── */
+  #tooltip {
+    position: fixed;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.7;
+    pointer-events: none;
+    z-index: 999;
+    display: none;
+    max-width: 340px;
+    white-space: pre-line;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  }
+
+  /* Separator line between route section and helpers section */
+  .section-divider {
+    position: absolute;
+    border-top: 1.5px dashed #cbd5e1;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PlantBox &mdash; System Architecture</h1>
+  <p>FastAPI SPA &middot; EMBL-EBI MySQL &middot; Ensembl REST API &middot; primer3</p>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:#2563eb"></div>Browser SPA tabs</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div>FastAPI route handlers</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#d97706"></div>In-memory caches (OrderedDict, TTL 30 min, max 100)</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#16a34a"></div>EBI MySQL connection pools</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#0d9488"></div>Ensembl REST API</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#e11d48"></div>primer3 library</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#64748b"></div>Helper functions</div>
+</div>
+
+<div class="diagram-scroll">
+  <div class="diagram" id="diagram">
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SVG overlay — arrows drawn by JS
+    ═══════════════════════════════════════════════════════════ -->
+    <svg class="arrows-svg" id="svg-arrows" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="mh-blue"   markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#2563eb"/></marker>
+        <marker id="mh-violet" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#7c3aed"/></marker>
+        <marker id="mh-amber"  markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#d97706"/></marker>
+        <marker id="mh-green"  markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#16a34a"/></marker>
+        <marker id="mh-teal"   markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#0d9488"/></marker>
+        <marker id="mh-rose"   markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#e11d48"/></marker>
+        <marker id="mh-slate"  markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#64748b"/></marker>
+      </defs>
+    </svg>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Column labels
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="col-label" style="left:10px;  top:6px; color:#1d4ed8; background:#dbeafe">Browser SPA</div>
+    <div class="col-label" style="left:208px; top:6px; color:#5b21b6; background:#ede9fe">FastAPI Routes</div>
+    <div class="col-label" style="left:458px; top:6px; color:#92400e; background:#fef3c7">In-Memory Caches</div>
+    <div class="col-label" style="left:683px; top:6px; color:#166534; background:#dcfce7">EBI MySQL Pools</div>
+    <div class="col-label" style="left:938px; top:6px; color:#115e59; background:#ccfbf1">Ensembl REST &amp; primer3</div>
+
+    <!-- Host badges -->
+    <div class="host-badge" style="left:683px; top:24px; color:#166534; background:#f0fdf4; border:1px solid #86efac">
+      mysql-eg-publicsql.ebi.ac.uk:4157
+    </div>
+    <div class="host-badge" style="left:938px; top:24px; color:#115e59; background:#f0fdfa; border:1px solid #5eead4">
+      rest.ensembl.org
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         COL 1 — Browser SPA (x=10, width=178)
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="node spa" id="spa-home"      style="left:10px; top:36px;  width:178px">&#127968; Landing page</div>
+    <div class="node spa" id="spa-variant"   style="left:10px; top:92px;  width:178px">&#128202; Variant Explorer<br><small>&amp; KASP Primer Design</small></div>
+    <div class="node spa" id="spa-dna"       style="left:10px; top:172px; width:178px">&#129514; Annotate DNA</div>
+    <div class="node spa" id="spa-protein"   style="left:10px; top:228px; width:178px">&#128302; Annotate Protein</div>
+    <div class="node spa" id="spa-homology"  style="left:10px; top:284px; width:178px">&#127807; Homologous Sequences</div>
+    <div class="node spa" id="spa-sequences" style="left:10px; top:352px; width:178px">&#128203; Sequence Retrieval</div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         COL 2 — FastAPI Routes (x=208, width=230)
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="node route" id="route-root"      style="left:208px; top:36px;  width:230px">GET /</div>
+    <div class="node route" id="route-query"     style="left:208px; top:87px;  width:230px">POST /api/query</div>
+    <div class="node route" id="route-primers"   style="left:208px; top:138px; width:230px">POST /api/primers</div>
+    <div class="node route" id="route-annotate"  style="left:208px; top:189px; width:230px">POST /api/annotate</div>
+    <div class="node route" id="route-prot"      style="left:208px; top:240px; width:230px">POST /api/annotate_protein</div>
+    <div class="node route" id="route-homology"  style="left:208px; top:291px; width:230px">POST /api/homology</div>
+    <div class="node route" id="route-sequences" style="left:208px; top:342px; width:230px">POST /api/sequences</div>
+    <div class="node route" id="route-csv"       style="left:208px; top:393px; width:230px">GET /api/download/csv/{token}</div>
+    <div class="node route" id="route-excel"     style="left:208px; top:432px; width:230px">GET /api/download/excel/{token}</div>
+    <div class="node route" id="route-fasta"     style="left:208px; top:471px; width:230px">GET /api/download/fasta/{token}</div>
+
+    <!-- Section divider before helpers -->
+    <div class="section-divider" style="left:208px; top:527px; width:230px;"></div>
+
+    <!-- Helper functions -->
+    <div class="col-label" style="left:208px; top:534px; color:#334155; background:#e2e8f0">Helpers</div>
+    <div class="node helper" id="helper-fetch-join"   style="left:208px; top:554px; width:230px">fetch_and_join()<br><small>asyncio.gather: variant + marker queries</small></div>
+    <div class="node helper" id="helper-strandedness" style="left:208px; top:614px; width:230px">_fetch_strandedness()<br><small>POST /lookup/id batch to Ensembl REST</small></div>
+    <div class="node helper" id="helper-segments"     style="left:208px; top:674px; width:230px">_compute_segments()<br><small>maps exon coords onto genomic seq</small></div>
+    <div class="node helper" id="helper-species-pool" style="left:208px; top:734px; width:230px">_get_species_core_pool()<br><small>lazy aiomysql.Pool per species</small></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         COL 3 — In-memory caches (x=458, width=200)
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="node cache" id="cache-result"  style="left:458px; top:72px;  width:200px">_result_cache<br><small>variant rows + homology rows</small></div>
+    <div class="node cache" id="cache-fasta"   style="left:458px; top:174px; width:200px">_fasta_cache<br><small>FASTA text blobs</small></div>
+    <div class="node cache" id="cache-annotate"style="left:458px; top:276px; width:200px">_annotate_cache<br><small>gene annotation results</small></div>
+    <div class="node cache" id="cache-prot"    style="left:458px; top:378px; width:200px">_prot_annotate_cache<br><small>protein annotation results</small></div>
+    <div class="node cache" id="cache-species" style="left:458px; top:480px; width:200px">_species_core_pools<br><small>species &#8594; aiomysql.Pool (persistent)</small></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         COL 4 — EBI MySQL (x=683, width=230)
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="node mysql" id="mysql-variation" style="left:683px; top:54px;  width:230px">variation_pool<br><small>triticum_aestivum_variation_*</small></div>
+    <div class="node mysql" id="mysql-core"      style="left:683px; top:148px; width:230px">core_pool<br><small>triticum_aestivum_core_*</small></div>
+    <div class="node mysql" id="mysql-compara"   style="left:683px; top:242px; width:230px">compara_pool<br><small>ensembl_compara_plants_*</small></div>
+    <div class="node mysql" id="mysql-species"   style="left:683px; top:336px; width:230px">species_core_pool(s)<br><small>{species}_core_* &mdash; lazy, cached</small></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         COL 5 — Ensembl REST (x=938, width=248)
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="node rest" id="rest-lookup-batch"  style="left:938px; top:54px;  width:248px">POST /lookup/id<br><small>strandedness batch &mdash; /api/query</small></div>
+    <div class="node rest" id="rest-lookup-expand" style="left:938px; top:144px; width:248px">GET /lookup/id/{id}?expand=1<br><small>gene metadata + transcripts &mdash; /api/annotate</small></div>
+    <div class="node rest" id="rest-seq-genomic"   style="left:938px; top:234px; width:248px">GET /sequence/id/{id}?type=genomic<br><small>genomic sequence &mdash; /api/annotate</small></div>
+    <div class="node rest" id="rest-seq-batch"     style="left:938px; top:324px; width:248px">POST /sequence/id<br><small>batch FASTA &mdash; /api/sequences</small></div>
+    <div class="node rest" id="rest-seq-protein"   style="left:938px; top:414px; width:248px">GET /sequence/id/{tx_id}?type=protein<br><small>protein seq &mdash; /api/annotate_protein</small></div>
+    <div class="node rest" id="rest-seq-region"    style="left:938px; top:504px; width:248px">GET /sequence/region/&hellip;/{chr}:{s}..{e}<br><small>flanking seq &mdash; /api/primers</small></div>
+
+    <!-- Section divider before primer3 -->
+    <div class="section-divider" style="left:938px; top:568px; width:248px;"></div>
+    <div class="col-label" style="left:938px; top:575px; color:#9f1239; background:#ffe4e6">primer3 library</div>
+
+    <div class="node p3" id="primer3-design" style="left:938px; top:596px; width:248px">primer3.design_primers()<br><small>blocking call &mdash; asyncio.to_thread()</small></div>
+    <div class="node p3" id="primer3-thermo" style="left:938px; top:686px; width:248px">calcTm &middot; calcHairpin &middot; calcHomodimer<br><small>ALT primer thermodynamics</small></div>
+
+  </div><!-- /diagram -->
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ── Connection table ──────────────────────────────────────────────────────────
+// [source-id, target-id, colour-key, tooltip-description]
+const CONNECTIONS = [
+  // SPA → Routes
+  ['spa-home',      'route-root',      'blue',   'GET / serves the static Alpine.js SPA'],
+  ['spa-variant',   'route-query',     'blue',   'POST /api/query — variant + KASP marker search'],
+  ['spa-variant',   'route-primers',   'blue',   'POST /api/primers — KASP / PCR primer design'],
+  ['spa-variant',   'route-csv',       'blue',   'GET /api/download/csv/{token}'],
+  ['spa-variant',   'route-excel',     'blue',   'GET /api/download/excel/{token}'],
+  ['spa-dna',       'route-annotate',  'blue',   'POST /api/annotate — gene annotation'],
+  ['spa-protein',   'route-prot',      'blue',   'POST /api/annotate_protein'],
+  ['spa-homology',  'route-homology',  'blue',   'POST /api/homology — fetch homologs'],
+  ['spa-homology',  'route-csv',       'blue',   'GET /api/download/csv/{token}'],
+  ['spa-homology',  'route-excel',     'blue',   'GET /api/download/excel/{token}'],
+  ['spa-sequences', 'route-sequences', 'blue',   'POST /api/sequences — bulk FASTA retrieval'],
+  ['spa-sequences', 'route-fasta',     'blue',   'GET /api/download/fasta/{token}'],
+
+  // Routes → Helpers
+  ['route-query',   'helper-fetch-join',    'violet', 'delegates to fetch_and_join()'],
+  ['route-query',   'helper-strandedness',  'violet', 'then calls _fetch_strandedness()'],
+  ['route-annotate','helper-segments',      'violet', '_compute_segments() maps exons → introns'],
+  ['route-prot',    'helper-species-pool',  'violet', '_get_species_core_pool() — lazy per-species pool'],
+
+  // Routes → Caches (write)
+  ['route-query',     'cache-result',   'amber', 'stores pandas rows as list[dict] under UUID token'],
+  ['route-homology',  'cache-result',   'amber', 'stores homology rows under UUID token'],
+  ['route-sequences', 'cache-fasta',    'amber', 'stores FASTA text under UUID token'],
+  ['route-annotate',  'cache-annotate', 'amber', 'stores AnnotateResponse'],
+  ['route-prot',      'cache-prot',     'amber', 'stores ProteinAnnotateResponse'],
+
+  // Download routes → Caches (read)
+  ['route-csv',   'cache-result', 'amber', 'O(1) token lookup → pandas CSV serialisation'],
+  ['route-excel', 'cache-result', 'amber', 'O(1) token lookup → openpyxl Excel serialisation'],
+  ['route-fasta', 'cache-fasta',  'amber', 'O(1) token lookup → FASTA text response'],
+
+  // Helpers → MySQL pools
+  ['helper-fetch-join',   'mysql-variation', 'green', 'run_variant_query() — concurrent via asyncio.gather'],
+  ['helper-fetch-join',   'mysql-core',      'green', 'run_marker_query() — concurrent via asyncio.gather'],
+  ['route-homology',      'mysql-compara',   'green', 'fetch_homologs() — homology + CIGAR + sequences'],
+  ['helper-species-pool', 'mysql-species',   'green', 'fetch_canonical_transcript_id(), fetch_protein_domains()'],
+
+  // _species_core_pools cache → MySQL species pool
+  ['cache-species', 'mysql-species', 'green', 'returns cached aiomysql.Pool — no reconnect'],
+
+  // helper-species-pool → cache-species (writes / reads pool cache)
+  ['helper-species-pool', 'cache-species', 'slate', 'stores new pool; reads existing pool'],
+
+  // Routes / Helpers → Ensembl REST
+  ['helper-strandedness', 'rest-lookup-batch',   'teal', 'POST /lookup/id — strandedness for result rows'],
+  ['route-annotate',      'rest-lookup-expand',  'teal', 'GET /lookup/id?expand=1 — gene + transcript coords'],
+  ['route-annotate',      'rest-seq-genomic',    'teal', 'GET /sequence/id?type=genomic — full genomic seq'],
+  ['route-sequences',     'rest-seq-batch',      'teal', 'POST /sequence/id — batch protein/cDNA FASTA'],
+  ['route-prot',          'rest-seq-protein',    'teal', 'GET /sequence/id/{tx_id}?type=protein'],
+  ['route-primers',       'rest-seq-region',     'teal', 'GET /sequence/region/triticum_aestivum/{chr}:{s}..{e}'],
+
+  // Routes → primer3
+  ['route-primers', 'primer3-design', 'rose', 'primer3.design_primers() — KASP (FORCE_LEFT_END) or PCR (TARGET)'],
+  ['route-primers', 'primer3-thermo', 'rose', 'calcTm / calcHairpin / calcHomodimer for ALT primer stats'],
+];
+
+const STROKE = {
+  blue:   '#2563eb',
+  violet: '#7c3aed',
+  amber:  '#d97706',
+  green:  '#16a34a',
+  teal:   '#0d9488',
+  rose:   '#e11d48',
+  slate:  '#64748b',
+};
+
+// ── Geometry helpers ──────────────────────────────────────────────────────────
+function getBox(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const dg = document.getElementById('diagram');
+  const er = el.getBoundingClientRect();
+  const dr = dg.getBoundingClientRect();
+  return {
+    l:  er.left   - dr.left,
+    r:  er.right  - dr.left,
+    t:  er.top    - dr.top,
+    b:  er.bottom - dr.top,
+    cx: (er.left + er.right)  / 2 - dr.left,
+    cy: (er.top  + er.bottom) / 2 - dr.top,
+    w:  er.width,
+    h:  er.height,
+  };
+}
+
+// ── Draw arrows ───────────────────────────────────────────────────────────────
+function drawArrows() {
+  const svg = document.getElementById('svg-arrows');
+  svg.querySelectorAll('path.arrow').forEach(p => p.remove());
+
+  CONNECTIONS.forEach(([srcId, tgtId, col, label]) => {
+    const s = getBox(srcId);
+    const t = getBox(tgtId);
+    if (!s || !t) return;
+
+    // Choose exit/entry edges based on primary direction of travel
+    const dx = t.cx - s.cx;
+    const dy = t.cy - s.cy;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+
+    let x1, y1, x2, y2;
+
+    if (adx >= ady * 0.7) {
+      // Primarily horizontal
+      if (dx >= 0) { x1 = s.r; y1 = s.cy; x2 = t.l; y2 = t.cy; }
+      else          { x1 = s.l; y1 = s.cy; x2 = t.r; y2 = t.cy; }
+    } else {
+      // Primarily vertical
+      if (dy >= 0) { x1 = s.cx; y1 = s.b; x2 = t.cx; y2 = t.t; }
+      else          { x1 = s.cx; y1 = s.t; x2 = t.cx; y2 = t.b; }
+    }
+
+    // Cubic bezier control points
+    const hspan = Math.abs(x2 - x1) * 0.45;
+    const vspan = Math.abs(y2 - y1) * 0.45;
+    let cp1x, cp1y, cp2x, cp2y;
+
+    if (adx >= ady * 0.7) {
+      const sign = dx >= 0 ? 1 : -1;
+      cp1x = x1 + hspan * sign; cp1y = y1;
+      cp2x = x2 - hspan * sign; cp2y = y2;
+    } else {
+      const sign = dy >= 0 ? 1 : -1;
+      cp1x = x1; cp1y = y1 + vspan * sign;
+      cp2x = x2; cp2y = y2 - vspan * sign;
+    }
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M${x1},${y1} C${cp1x},${cp1y} ${cp2x},${cp2y} ${x2},${y2}`);
+    path.setAttribute('stroke', STROKE[col]);
+    path.setAttribute('marker-end', `url(#mh-${col})`);
+    path.dataset.src   = srcId;
+    path.dataset.tgt   = tgtId;
+    path.dataset.label = label;
+    path.classList.add('arrow');
+    svg.appendChild(path);
+  });
+}
+
+// ── Hover / highlight logic ───────────────────────────────────────────────────
+function applyHighlight(nodeId) {
+  const connected = new Set([nodeId]);
+
+  document.querySelectorAll('.arrow').forEach(p => {
+    const hit = p.dataset.src === nodeId || p.dataset.tgt === nodeId;
+    p.classList.toggle('lit', hit);
+    if (hit) { connected.add(p.dataset.src); connected.add(p.dataset.tgt); }
+  });
+
+  document.querySelectorAll('.node').forEach(n => {
+    if (connected.has(n.id)) {
+      n.classList.remove('dimmed');
+      n.classList.toggle('lit', n.id === nodeId);
+    } else {
+      n.classList.add('dimmed');
+      n.classList.remove('lit');
+    }
+  });
+}
+
+function clearHighlight() {
+  document.querySelectorAll('.arrow').forEach(p => p.classList.remove('lit'));
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('dimmed', 'lit'));
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+
+document.querySelectorAll('.node').forEach(node => {
+  node.addEventListener('mouseenter', () => {
+    applyHighlight(node.id);
+
+    const lines = CONNECTIONS
+      .filter(([s, t]) => s === node.id || t === node.id)
+      .map(([s, t, , lbl]) => (s === node.id ? '\u2192 ' : '\u2190 ') + lbl);
+
+    if (lines.length) {
+      tooltip.textContent = lines.join('\n');
+      tooltip.style.display = 'block';
+    }
+  });
+
+  node.addEventListener('mousemove', e => {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+  });
+
+  node.addEventListener('mouseleave', () => {
+    clearHighlight();
+    tooltip.style.display = 'none';
+  });
+});
+
+// ── Init & resize ─────────────────────────────────────────────────────────────
+window.addEventListener('load',   drawArrows);
+window.addEventListener('resize', drawArrows);
+setTimeout(drawArrows, 120); // guard against late layout paint
+</script>
+</body>
+</html>

@@ -162,6 +162,16 @@ Endpoint: `POST /api/homology` — accepts `{ gene_id: string, homology_type: st
 - "Export alignment (.txt)" button triggers a client-side Blob download of the formatted alignment text.
 - CSV/Excel downloads include all 11 columns (sequences + CIGARs) and are named `{gene_id}_homology.csv/.xlsx`.
 
+### System Architecture tab
+
+`static/architecture.html` — an interactive SVG-overlay component diagram. Served statically at `/static/architecture.html` via the existing FastAPI `app.mount("/static", ...)`.
+
+**Embedded in the dashboard as a tab (`activeTab === 'architecture'`):**
+- Landing page card in the tool grid links to this tab.
+- Tab contains: back button, header, zoom controls (− / + / Reset, `archZoom` / `archZoomReset` plain JS functions), "Open standalone ↗" link, a 720 px scrollable `<iframe>` loading `/static/architecture.html`, and 8 written component-reference sections below (Variant Explorer, DNA, Protein, Homology, Sequence Retrieval, Cache Layer, EBI MySQL, Ensembl REST).
+- Zoom JS adjusts `iframe.style.transform: scale(n)` and inversely scales the iframe's `width`/`height` so the scroll container always tracks the true rendered size.
+- No backend changes required — the existing static mount handles it.
+
 ### Variant Explorer & KASP Primer Design
 
 The landing page card is titled **Variant Explorer & KASP Primer Design**. The primer designer is embedded inside the Variant Explorer tab — there is no separate tool page for it.
