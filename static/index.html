@@ -578,7 +578,9 @@
                   <p class="font-semibold text-blue-800 text-xs uppercase tracking-wide"
                     x-text="primerResult.primer_type === 'kasp' ? 'Fwd — REF allele' : 'Forward primer'"></p>
                   <p class="font-mono text-xs text-slate-700 break-all"
-                    x-text="primerResult.primer_pairs[primerPairIdx].left_ref_seq"></p>
+                    x-html="primerResult.primer_type === 'kasp'
+                      ? kaspSeqHtml(primerResult.primer_pairs[primerPairIdx].left_ref_seq)
+                      : primerSeqHtml(primerResult.primer_pairs[primerPairIdx].left_ref_seq)"></p>
                   <div class="grid grid-cols-3 gap-1 pt-1 text-xs text-slate-600">
                     <span>Tm <b x-text="primerResult.primer_pairs[primerPairIdx].left_tm + '°C'"></b></span>
                     <span>GC <b x-text="primerResult.primer_pairs[primerPairIdx].left_gc + '%'"></b></span>
@@ -593,7 +595,7 @@
                   <div class="rounded-lg border border-orange-100 bg-orange-50 p-3 text-sm space-y-1">
                     <p class="font-semibold text-orange-800 text-xs uppercase tracking-wide">Fwd — ALT allele</p>
                     <p class="font-mono text-xs text-slate-700 break-all"
-                      x-text="primerResult.primer_pairs[primerPairIdx].left_alt_seq"></p>
+                      x-html="kaspSeqHtml(primerResult.primer_pairs[primerPairIdx].left_alt_seq)"></p>
                     <p class="text-xs text-slate-500 italic">Identical to REF primer except 3′ base</p>
                   </div>
                 </template>
@@ -605,7 +607,7 @@
                     <span x-text="primerResult.primer_type === 'kasp' ? 'Common reverse primer' : 'Reverse primer'"></span>
                   </p>
                   <p class="font-mono text-xs text-slate-700 break-all"
-                    x-text="primerResult.primer_pairs[primerPairIdx].right_seq"></p>
+                    x-html="primerSeqHtml(primerResult.primer_pairs[primerPairIdx].right_seq)"></p>
                   <div class="grid grid-cols-3 gap-1 pt-1 text-xs text-slate-600">
                     <span>Tm <b x-text="primerResult.primer_pairs[primerPairIdx].right_tm + '°C'"></b></span>
                     <span>GC <b x-text="primerResult.primer_pairs[primerPairIdx].right_gc + '%'"></b></span>
@@ -2240,6 +2242,21 @@
         },
 
         // ── Primer designer methods ──────────────────────────────
+
+        /* Returns 5'—{seq}—3' plain (for common/reverse primers) */
+        primerSeqHtml(seq) {
+          if (!seq) return '';
+          return `<span class="text-slate-400">5'—</span>${seq}<span class="text-slate-400">—3'</span>`;
+        },
+
+        /* Returns 5'—{body}<strong>{last}</strong>—3' (for KASP REF/ALT allele primers) */
+        kaspSeqHtml(seq) {
+          if (!seq) return '';
+          const body = seq.slice(0, -1);
+          const last = seq.slice(-1);
+          return `<span class="text-slate-400">5'—</span>${body}<strong class="text-slate-900">${last}</strong><span class="text-slate-400">—3'</span>`;
+        },
+
         selectVariantForPrimers(row) {
           if (this.selectedVariant === row) {
             this.selectedVariant = null;
