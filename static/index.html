@@ -307,25 +307,24 @@
           </button>
         </div>
 
-        <!-- System Architecture -->
-        <div class="bg-surface-1 border border-surface-2 rounded-xl p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-          <div>
-            <span class="text-base font-bold text-accent">System Architecture</span>
-            <p class="text-sm text-slate-700 mt-1.5 text-justify">
-              Interactive component diagram showing all API endpoints, in-memory caches, EBI MySQL
-              connection pools, Ensembl REST calls, and the primer3 library — colour-coded by type
-              with hover-highlighted data-flow arrows.
-            </p>
-          </div>
-          <div class="text-xs text-slate-500 space-y-1 border-t border-surface-2 pt-3 text-justify">
-            <p><span class="font-semibold text-slate-600">How it works:</span> Static SVG-overlay diagram built from live DOM positions; arrows redraw on resize. Hover any node to highlight its connections.</p>
-          </div>
-          <button @click="activeTab = 'architecture'" class="btn-primary mt-auto text-white text-sm font-medium rounded-lg px-4 py-2 self-start">
-            View diagram &rarr;
-          </button>
-        </div>
 
       </div>
+    </div>
+
+    <!-- System Architecture -->
+    <div class="bg-surface-1 border border-surface-2 rounded-xl p-5 flex items-center justify-between gap-6 shadow-sm hover:shadow-md transition-shadow">
+      <div class="flex-1">
+        <span class="text-base font-bold text-accent">System Architecture</span>
+        <p class="text-sm text-slate-700 mt-1 text-justify">
+          Interactive component diagram showing all API endpoints, in-memory caches, EBI MySQL
+          connection pools, Ensembl REST calls, and the primer3 library — colour-coded by type
+          with hover-highlighted data-flow arrows.
+        </p>
+        <p class="text-xs text-slate-500 mt-1.5"><span class="font-semibold text-slate-600">How it works:</span> Static SVG-overlay diagram built from live DOM positions; arrows redraw on resize. Hover any node to highlight its connections.</p>
+      </div>
+      <button @click="activeTab = 'architecture'" class="btn-primary shrink-0 text-white text-sm font-medium rounded-lg px-4 py-2">
+        View diagram &rarr;
+      </button>
     </div>
 
     <!-- Caveats -->
@@ -1779,34 +1778,42 @@
       <!-- Ensembl REST -->
       <section class="space-y-2">
         <h4 class="font-semibold text-slate-800">Ensembl REST API Calls</h4>
-        <div class="bg-surface-1 border border-surface-2 rounded-lg p-4 text-xs text-slate-600 space-y-2">
+        <div class="bg-surface-1 border border-surface-2 rounded-lg p-4 text-xs text-slate-600 space-y-3">
           <p>All REST calls go to <span class="font-mono font-semibold">https://rest.ensembl.org</span> via <code>httpx.AsyncClient</code>. Six distinct endpoints are used:</p>
-          <div class="space-y-1.5 mt-1">
-            <div class="flex gap-3">
-              <span class="font-mono text-teal-700 shrink-0">POST /lookup/id</span>
-              <span>Batch strandedness lookup called by <code>_fetch_strandedness()</code> after <code>/api/query</code>. Accepts a JSON body of transcript IDs; returns strand and chromosome metadata inserted as the <em>Strandedness</em> column in query results.</span>
-            </div>
-            <div class="flex gap-3">
-              <span class="font-mono text-teal-700 shrink-0">GET /lookup/id/{id}?expand=1</span>
-              <span>Gene metadata including transcript and exon coordinate arrays. Called concurrently with the genomic sequence endpoint by <code>/api/annotate</code>.</span>
-            </div>
-            <div class="flex gap-3">
-              <span class="font-mono text-teal-700 shrink-0">GET /sequence/id/{id}?type=genomic</span>
-              <span>Full genomic sequence string for a gene. Called concurrently with the lookup endpoint by <code>/api/annotate</code>. <code>_compute_segments()</code> maps exon coordinates onto this string.</span>
-            </div>
-            <div class="flex gap-3">
-              <span class="font-mono text-teal-700 shrink-0">POST /sequence/id</span>
-              <span>Batch FASTA retrieval for up to 50 gene IDs at a time. Called by <code>/api/sequences</code>. Response is stored verbatim in <code>_fasta_cache</code>.</span>
-            </div>
-            <div class="flex gap-3">
-              <span class="font-mono text-teal-700 shrink-0">GET /sequence/id/{tx_id}?type=protein</span>
-              <span>Protein sequence for the canonical transcript (queried by transcript ID, not gene ID, to avoid Ensembl's "multiple sequences" error). Called by <code>/api/annotate_protein</code>.</span>
-            </div>
-            <div class="flex gap-3">
-              <span class="font-mono text-teal-700 shrink-0">GET /sequence/region/triticum_aestivum/{chr}:{s}..{e}</span>
-              <span>Flanking genomic region around a SNP. Called by <code>/api/primers</code>; the returned sequence is passed to <code>primer3.design_primers()</code> with <code>SEQUENCE_FORCE_LEFT_END</code> (KASP) or <code>SEQUENCE_TARGET</code> (PCR) set at the SNP offset.</span>
-            </div>
-          </div>
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="border-b border-surface-2">
+                <th class="text-left font-semibold text-slate-700 py-1.5 pr-4 w-72">Endpoint</th>
+                <th class="text-left font-semibold text-slate-700 py-1.5">Description</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-surface-2">
+              <tr>
+                <td class="font-mono text-teal-700 py-2 pr-4 align-top">POST /lookup/id</td>
+                <td class="py-2 align-top">Batch strandedness lookup called by <code>_fetch_strandedness()</code> after <code>/api/query</code>. Accepts a JSON body of transcript IDs; returns strand and chromosome metadata inserted as the <em>Strandedness</em> column in query results.</td>
+              </tr>
+              <tr>
+                <td class="font-mono text-teal-700 py-2 pr-4 align-top">GET /lookup/id/{id}?expand=1</td>
+                <td class="py-2 align-top">Gene metadata including transcript and exon coordinate arrays. Called concurrently with the genomic sequence endpoint by <code>/api/annotate</code>.</td>
+              </tr>
+              <tr>
+                <td class="font-mono text-teal-700 py-2 pr-4 align-top">GET /sequence/id/{id}?type=genomic</td>
+                <td class="py-2 align-top">Full genomic sequence string for a gene. Called concurrently with the lookup endpoint by <code>/api/annotate</code>. <code>_compute_segments()</code> maps exon coordinates onto this string.</td>
+              </tr>
+              <tr>
+                <td class="font-mono text-teal-700 py-2 pr-4 align-top">POST /sequence/id</td>
+                <td class="py-2 align-top">Batch FASTA retrieval for up to 50 gene IDs at a time. Called by <code>/api/sequences</code>. Response is stored verbatim in <code>_fasta_cache</code>.</td>
+              </tr>
+              <tr>
+                <td class="font-mono text-teal-700 py-2 pr-4 align-top">GET /sequence/id/{tx_id}?type=protein</td>
+                <td class="py-2 align-top">Protein sequence for the canonical transcript (queried by transcript ID, not gene ID, to avoid Ensembl's "multiple sequences" error). Called by <code>/api/annotate_protein</code>.</td>
+              </tr>
+              <tr>
+                <td class="font-mono text-teal-700 py-2 pr-4 align-top">GET /sequence/region/<br>triticum_aestivum/{chr}:{s}..{e}</td>
+                <td class="py-2 align-top">Flanking genomic region around a SNP. Called by <code>/api/primers</code>; the returned sequence is passed to <code>primer3.design_primers()</code> with <code>SEQUENCE_FORCE_LEFT_END</code> (KASP) or <code>SEQUENCE_TARGET</code> (PCR) set at the SNP offset.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
