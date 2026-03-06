@@ -292,10 +292,10 @@
         <!-- Pull Homologous Sequences -->
         <div class="bg-surface-1 border border-surface-2 rounded-xl p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
           <div>
-            <span class="text-base font-bold text-accent">Pull Homologous Sequences</span>
+            <span class="text-base font-bold text-accent">Pull Homologous Sequences and Protein Pairwise Alignment</span>
             <p class="text-sm text-slate-700 mt-1.5 text-justify">
               Returns all orthologues, homoeologues, or paralogues of a gene, including sequences not shown in the Ensembl browser.
-              An interactive pairwise alignment viewer reconstructs alignments from CIGAR strings client-side, with a summary statistics table showing identity %, matches, mismatches, gaps, and residue composition.
+              An interactive pairwise alignment viewer reconstructs protein alignments from CIGAR strings client-side, with a summary statistics table showing identity %, matches, mismatches, gaps, and residue composition.
             </p>
           </div>
           <div class="text-xs text-slate-500 space-y-1 border-t border-surface-2 pt-3 text-justify">
@@ -1345,7 +1345,7 @@
     </button>
 
     <p class="text-slate-500 text-sm mb-4 text-center">
-      Query the Ensembl Compara Plants database for orthologues, homoeologues, or paralogues of a plant gene.<br>Click a result row to view the pairwise alignment reconstructed from CIGAR strings.
+      Query the Ensembl Compara Plants database for orthologues, homoeologues, or paralogues of a plant gene.<br>Click a result row to view the protein pairwise alignment reconstructed from CIGAR strings.
     </p>
 
     <!-- Input section -->
@@ -1447,7 +1447,7 @@
             @click="homoAlignOpen = !homoAlignOpen"
             class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-surface-2 transition-colors"
           >
-            <span>Pairwise Alignment Viewer</span>
+            <span>Protein Pairwise Alignment Viewer</span>
             <svg class="w-4 h-4 transition-transform" :class="homoAlignOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
@@ -1796,7 +1796,7 @@
 
       <!-- Homology -->
       <section class="space-y-2">
-        <h4 class="font-semibold text-slate-800">Pull Homologous Sequences</h4>
+        <h4 class="font-semibold text-slate-800">Pull Homologous Sequences & Protein Pairwise Alignment</h4>
         <div class="bg-surface-1 border border-surface-2 rounded-lg p-4 text-xs text-slate-600 space-y-3">
           <table class="w-full border-collapse">
             <thead>
