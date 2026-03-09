@@ -2154,6 +2154,63 @@
         </div>
       </section>
 
+      <!-- Promoter & CRE Annotator -->
+      <section class="space-y-2">
+        <h4 class="font-semibold text-slate-800">Promoter &amp; CRE Annotator</h4>
+        <div class="bg-surface-1 border border-surface-2 rounded-lg p-4 text-xs text-slate-600 space-y-3">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="border-b border-surface-2">
+                <th class="text-left font-semibold text-slate-700 py-1.5 pr-4 w-32">Category</th>
+                <th class="text-left font-semibold text-slate-700 py-1.5">Details</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-surface-2">
+              <tr>
+                <td class="font-semibold text-slate-700 py-2 pr-4 align-top">API Calls</td>
+                <td class="py-2 align-top text-justify">
+                  <span class="font-mono text-violet-700">POST /api/promoter</span> — accepts <span class="font-mono">{ gene_id, upstream_bp }</span> where <span class="font-mono">upstream_bp</span> is clamped to 200–5000 (default 2000). Returns gene metadata, the promoter sequence, and all cis-regulatory element hits with positions and strand.
+                </td>
+              </tr>
+              <tr>
+                <td class="font-semibold text-slate-700 py-2 pr-4 align-top">Data Flow</td>
+                <td class="py-2 align-top text-justify space-y-1">
+                  <p>Two sequential Ensembl REST calls: <span class="font-mono">GET /lookup/id/{gene_id}?expand=0</span> to obtain chromosome, start/end coordinates, strand, and species; then <span class="font-mono">GET /sequence/region/{species}/{chr}:{start}..{end}</span> to fetch the upstream window. For reverse-strand genes the sequence is reverse-complemented so index&nbsp;0 is always the distal end and the last position is the TSS.</p>
+                  <p><code>_scan_promoter_motifs()</code> iterates all 16 entries in <code>PROMOTER_MOTIFS</code>, compiles each IUPAC consensus into a Python regex via <code>_iupac_to_regex()</code> (M=[AC], Y=[CT], R=[AG], S=[GC], N=[ACGT], W=[AT]), and searches both the forward strand and its reverse complement. Reverse-strand match coordinates are remapped to forward-strand space. Hits are returned sorted by start position and stored in <code>_promoter_cache</code> under a UUID token.</p>
+                </td>
+              </tr>
+              <tr>
+                <td class="font-semibold text-slate-700 py-2 pr-4 align-top">Motif Library</td>
+                <td class="py-2 align-top text-justify space-y-1">
+                  <p>16 plant CREs across 12 regulatory categories:</p>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1">
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-yellow-200 mr-1 align-middle"></span><strong>Core Promoter</strong> — TATA box, CAAT box</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-sky-200 mr-1 align-middle"></span><strong>Light</strong> — G-box, I-box, GATA motif, Box-4</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-blue-200 mr-1 align-middle"></span><strong>ABA/Drought</strong> — ABRE</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-indigo-200 mr-1 align-middle"></span><strong>Cold/Drought</strong> — DRE/CRT</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-orange-200 mr-1 align-middle"></span><strong>Heat Stress</strong> — HSE</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-rose-200 mr-1 align-middle"></span><strong>Defense</strong> — W-box</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-pink-200 mr-1 align-middle"></span><strong>JA/SA</strong> — TGACG motif</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-fuchsia-200 mr-1 align-middle"></span><strong>Salicylic Acid</strong> — TCA element</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-violet-200 mr-1 align-middle"></span><strong>Auxin</strong> — AuxRE</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-purple-200 mr-1 align-middle"></span><strong>Ethylene</strong> — GCC box</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-200 mr-1 align-middle"></span><strong>MYB</strong> — MBS</span>
+                    <span><span class="inline-block w-2.5 h-2.5 rounded-sm bg-teal-200 mr-1 align-middle"></span><strong>Circadian</strong> — Evening element</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="font-semibold text-slate-700 py-2 pr-4 align-top">Databases &amp; Caches</td>
+                <td class="py-2 align-top text-justify space-y-1">
+                  <p>No MySQL query — purely REST-based and in-process regex scanning.</p>
+                  <p><strong>_promoter_cache</strong> — OrderedDict, TTL 30 min, max 100 entries. Stores the full <code>PromoterResponse</code> dict under a UUID token.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Caching layer -->
       <section class="space-y-2">
         <h4 class="font-semibold text-slate-800">In-Memory Cache Layer</h4>
@@ -2168,7 +2225,7 @@
             <tbody class="divide-y divide-surface-2">
               <tr>
                 <td class="font-semibold text-slate-700 py-2 pr-4 align-top">Storage</td>
-                <td class="py-2 align-top text-justify">All result caches (<code>_result_cache</code>, <code>_fasta_cache</code>, <code>_annotate_cache</code>, <code>_prot_annotate_cache</code>) are Python <code>OrderedDict</code> instances stored on <code>app.state</code>. Each entry is a tuple <code>(timestamp, payload)</code>.</td>
+                <td class="py-2 align-top text-justify">All result caches (<code>_result_cache</code>, <code>_fasta_cache</code>, <code>_annotate_cache</code>, <code>_prot_annotate_cache</code>, <code>_promoter_cache</code>) are Python <code>OrderedDict</code> instances stored on <code>app.state</code>. Each entry is a tuple <code>(timestamp, payload)</code>.</td>
               </tr>
               <tr>
                 <td class="font-semibold text-slate-700 py-2 pr-4 align-top">Eviction</td>
@@ -2229,7 +2286,7 @@
       <section class="space-y-2">
         <h4 class="font-semibold text-slate-800">Ensembl REST API Calls</h4>
         <div class="bg-surface-1 border border-surface-2 rounded-lg p-4 text-xs text-slate-600 space-y-3">
-          <p>All REST calls go to <span class="font-mono font-semibold">https://rest.ensembl.org</span> via <code>httpx.AsyncClient</code>. Six distinct endpoints are used:</p>
+          <p>All REST calls go to <span class="font-mono font-semibold">https://rest.ensembl.org</span> via <code>httpx.AsyncClient</code>. Seven distinct endpoints are used:</p>
           <table class="w-full border-collapse">
             <thead>
               <tr class="border-b border-surface-2">
@@ -2261,6 +2318,10 @@
               <tr>
                 <td class="font-mono text-teal-700 py-2 pr-4 align-top">GET /sequence/region/<br>triticum_aestivum/{chr}:{s}..{e}</td>
                 <td class="py-2 align-top text-justify">Flanking genomic region around a SNP. Called by <code>/api/primers</code>; the returned sequence is passed to <code>primer3.design_primers()</code> with <code>SEQUENCE_FORCE_LEFT_END</code> (KASP) or <code>SEQUENCE_TARGET</code> (PCR) set at the SNP offset.</td>
+              </tr>
+              <tr>
+                <td class="font-mono text-teal-700 py-2 pr-4 align-top">GET /sequence/region/<br>{species}/{chr}:{s}..{e}</td>
+                <td class="py-2 align-top text-justify">Upstream promoter window for any supported species. Called by <code>/api/promoter</code> after the gene lookup; species is taken from the lookup response so any Ensembl Plants genome is supported. The sequence is reverse-complemented for minus-strand genes before motif scanning.</td>
               </tr>
             </tbody>
           </table>
