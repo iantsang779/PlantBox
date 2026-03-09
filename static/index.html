@@ -3458,21 +3458,34 @@
     }
 
     // ── Architecture tab zoom & pan ────────────────────────────────────────────
-    const _ARCH_W = 1280, _ARCH_H = 920;
+    let _ARCH_W = 1280, _ARCH_H = 920;
     let _archScale = 1.0;
 
     function _archApplyScale() {
       const iframe  = document.getElementById('arch-iframe');
       const wrapper = document.getElementById('arch-scale-wrapper');
       if (!iframe || !wrapper) return;
-      // iframe stays at native size; transform scales its visual appearance
+      // iframe native size always matches the true diagram dimensions
+      iframe.style.width  = _ARCH_W + 'px';
+      iframe.style.height = _ARCH_H + 'px';
+      // transform scales the visual appearance; wrapper tracks the scaled size
+      // so the scroll container scrolls correctly
       iframe.style.transform = _archScale === 1.0 ? '' : `scale(${_archScale})`;
-      // wrapper expands to the true visual dimensions so the scroll box scrolls correctly
       wrapper.style.width  = Math.round(_ARCH_W * _archScale) + 'px';
       wrapper.style.height = Math.round(_ARCH_H * _archScale) + 'px';
       const pct = document.getElementById('arch-zoom-pct');
       if (pct) pct.textContent = Math.round(_archScale * 100) + '%';
     }
+
+    // When architecture.html posts its true rendered size, resize the iframe
+    // and wrapper so nodes are never clipped regardless of how many are added.
+    window.addEventListener('message', function (e) {
+      if (e.data && e.data.type === 'arch-size') {
+        _ARCH_W = e.data.width;
+        _ARCH_H = e.data.height;
+        _archApplyScale();
+      }
+    });
     function archZoom(delta) {
       _archScale = Math.min(2.0, Math.max(0.3, _archScale + delta));
       _archApplyScale();

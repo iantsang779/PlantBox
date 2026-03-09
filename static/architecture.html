@@ -491,6 +491,8 @@ document.querySelectorAll('.node').forEach(node => {
 // Measures the rightmost/bottommost edge of every .node and resizes the
 // diagram container accordingly, so adding a new node or endpoint never
 // requires a manual width/height update.
+// Also notifies any parent frame of the true document dimensions so the
+// embedding iframe can resize itself to match.
 function sizeDiagram() {
   const diagram = document.getElementById('diagram');
   let maxR = 0, maxB = 0;
@@ -500,8 +502,14 @@ function sizeDiagram() {
     if (r > maxR) maxR = r;
     if (b > maxB) maxB = b;
   });
-  diagram.style.width  = (maxR + 48) + 'px';
-  diagram.style.height = (maxB + 48) + 'px';
+  const w = maxR + 48;
+  const h = maxB + 80; // extra bottom padding for legend / labels
+  diagram.style.width  = w + 'px';
+  diagram.style.height = h + 'px';
+  // Tell the embedding iframe in index.html the true rendered size
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'arch-size', width: w, height: h }, '*');
+  }
 }
 
 // ── Init & resize ─────────────────────────────────────────────────────────────
