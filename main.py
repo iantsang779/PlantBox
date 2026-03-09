@@ -10,6 +10,7 @@ Endpoints:
 
 import asyncio
 import io
+import re
 import time
 import uuid
 from collections import OrderedDict
@@ -194,6 +195,25 @@ def _annotate_cache_store(token: str, data: dict) -> None:
 # ---------------------------------------------------------------------------
 
 _prot_annotate_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+
+_promoter_cache: OrderedDict = OrderedDict()
+
+def _promoter_cache_store(data: dict) -> str:
+    """
+    Store a promoter annotation result in the in-memory cache.
+
+    Args:
+        data: Serialised ``PromoterResponse`` dict to cache.
+
+    Returns:
+        A UUID token string that can be used to retrieve the cached entry.
+    """
+    token = str(uuid.uuid4())
+    if len(_promoter_cache) >= _CACHE_MAX_ENTRIES:
+        _promoter_cache.popitem(last=False)
+    _promoter_cache[token] = {"data": data, "ts": time.time()}
+    return token
 
 
 def _prot_cache_store(token: str, data: dict) -> None:
@@ -420,6 +440,39 @@ class HomologyResponse(BaseModel):
     db_name:         str
 
 
+class PromoterRequest(BaseModel):
+    """Request body for the promoter annotation endpoint."""
+
+    gene_id: str
+    upstream_bp: int = 2000
+
+class PromoterHit(BaseModel):
+    """A single cis-regulatory element hit within a promoter sequence."""
+
+    name: str
+    category: str
+    function: str
+    color_class: str
+    start: int        # 0-indexed position in promoter sequence
+    end: int          # exclusive
+    matched_seq: str
+    strand: str       # "+" or "-"
+
+class PromoterResponse(BaseModel):
+    """Response body for the promoter annotation endpoint."""
+
+    token: str
+    gene_id: str
+    display_name: str
+    chromosome: str
+    gene_start: int
+    gene_end: int
+    strand: int
+    upstream_bp: int
+    sequence: str     # promoter sequence, always 5'->3' (distal->TSS)
+    hits: list[PromoterHit]
+
+
 class PrimerRequest(BaseModel):
     variant_name: str
     chromosome: str
@@ -477,6 +530,53 @@ _HOMO_ALL_COLS = [
     "homology_type",
     "homolog_gene_id", "homolog_species",
     "homolog_perc_id", "homolog_cigar_line", "homolog_sequence",
+]
+
+
+def _iupac_to_regex(consensus: str) -> str:
+    """
+    Convert an IUPAC consensus string to a Python regex pattern.
+
+    Replaces IUPAC ambiguity codes with the corresponding character class.
+    Standard DNA bases (A, C, G, T) are passed through unchanged.
+
+    Args:
+        consensus: IUPAC nucleotide consensus string, e.g. ``"MACGTGYC"``.
+
+    Returns:
+        A regex pattern string suitable for ``re.compile()``.
+    """
+    _IUPAC = {
+        'R': '[AG]', 'Y': '[CT]', 'S': '[GC]', 'W': '[AT]',
+        'K': '[GT]', 'M': '[AC]', 'B': '[CGT]', 'D': '[AGT]',
+        'H': '[ACT]', 'V': '[ACG]', 'N': '[ACGT]',
+    }
+    return ''.join(_IUPAC.get(c.upper(), c) for c in consensus)
+
+PROMOTER_MOTIFS: list[dict] = [
+    # Core Promoter
+    {"name": "TATA box",        "consensus": "TATAAA",     "category": "Core Promoter",  "function": "Transcription initiation",             "color_class": "bg-yellow-200"},
+    {"name": "CAAT box",        "consensus": "CCAAT",      "category": "Core Promoter",  "function": "Enhancer/promoter activity",            "color_class": "bg-yellow-100"},
+    # Light-responsive
+    {"name": "G-box",           "consensus": "CACGTG",     "category": "Light",          "function": "Light response (HY5/bZIP binding)",     "color_class": "bg-sky-200"},
+    {"name": "I-box",           "consensus": "GATAAG",     "category": "Light",          "function": "Light-regulated transcription",          "color_class": "bg-sky-100"},
+    {"name": "GATA motif",      "consensus": "GATA",       "category": "Light",          "function": "Light-regulated gene expression",        "color_class": "bg-sky-300"},
+    {"name": "Box-4",           "consensus": "ATTAAT",     "category": "Light",          "function": "Light-responsive element",              "color_class": "bg-cyan-200"},
+    # ABA / Drought
+    {"name": "ABRE",            "consensus": "MACGTGYC",   "category": "ABA/Drought",    "function": "ABA response, drought/osmotic stress",  "color_class": "bg-blue-200"},
+    {"name": "DRE/CRT",         "consensus": "RCCGAC",     "category": "Cold/Drought",   "function": "DREB binding, cold/drought tolerance",  "color_class": "bg-indigo-200"},
+    # Heat
+    {"name": "HSE",             "consensus": "GAANNTTC",   "category": "Heat Stress",    "function": "Heat shock factor binding",             "color_class": "bg-orange-200"},
+    # Defense
+    {"name": "W-box",           "consensus": "TTGACY",     "category": "Defense",        "function": "WRKY TF binding, defense/stress",       "color_class": "bg-rose-200"},
+    # Hormone
+    {"name": "TGACG motif",     "consensus": "TGACG",      "category": "JA/SA",          "function": "MeJA and SA responsiveness",            "color_class": "bg-pink-200"},
+    {"name": "TCA element",     "consensus": "TCATCTTCTT", "category": "Salicylic Acid", "function": "Salicylic acid response",               "color_class": "bg-fuchsia-200"},
+    {"name": "AuxRE",           "consensus": "TGASTC",     "category": "Auxin",          "function": "Auxin response factor binding",         "color_class": "bg-violet-200"},
+    {"name": "GCC box",         "consensus": "AGCCGCC",    "category": "Ethylene",       "function": "ERF/AP2 binding, ethylene response",    "color_class": "bg-purple-200"},
+    # MYB / Circadian
+    {"name": "MBS",             "consensus": "CAACTG",     "category": "MYB",            "function": "MYB TF binding, drought response",      "color_class": "bg-emerald-200"},
+    {"name": "Evening element", "consensus": "AAATATCT",   "category": "Circadian",      "function": "Circadian clock regulation",            "color_class": "bg-teal-200"},
 ]
 
 
@@ -1343,3 +1443,117 @@ async def design_primers(req: PrimerRequest):
         primer_type=req.primer_type,
         primer_pairs=pairs,
     )
+
+
+def _scan_promoter_motifs(sequence: str) -> list[dict]:
+    """
+    Scan a promoter sequence for all known cis-regulatory elements on both strands.
+
+    Searches both the forward strand and its reverse complement for each motif
+    in ``PROMOTER_MOTIFS``, using compiled IUPAC regex patterns.  Reverse-strand
+    hit coordinates are mapped back to the forward-strand coordinate space so
+    that all ``start``/``end`` values are relative to the same sequence index 0.
+
+    Args:
+        sequence: Promoter nucleotide sequence (5'→3', distal to TSS).
+
+    Returns:
+        A list of hit dictionaries (keys: ``name``, ``category``, ``function``,
+        ``color_class``, ``start``, ``end``, ``matched_seq``, ``strand``),
+        sorted ascending by ``start`` position.
+    """
+    _RC = str.maketrans("ACGTacgt", "TGCAtgca")
+    rev_comp = sequence[::-1].translate(_RC)
+    hits = []
+    for motif in PROMOTER_MOTIFS:
+        pattern = re.compile(_iupac_to_regex(motif["consensus"]), re.IGNORECASE)
+        for strand, seq in (("+", sequence), ("-", rev_comp)):
+            for m in pattern.finditer(seq):
+                start = m.start() if strand == "+" else len(sequence) - m.end()
+                end   = m.end()   if strand == "+" else len(sequence) - m.start()
+                hits.append({
+                    "name": motif["name"], "category": motif["category"],
+                    "function": motif["function"], "color_class": motif["color_class"],
+                    "start": start, "end": end,
+                    "matched_seq": m.group(), "strand": strand,
+                })
+    return sorted(hits, key=lambda h: h["start"])
+
+
+@app.post("/api/promoter", response_model=PromoterResponse)
+async def promoter_annotate(req: PromoterRequest):
+    """
+    Fetch a configurable upstream promoter window and scan it for cis-regulatory elements.
+
+    Performs two sequential Ensembl REST calls: a gene lookup to obtain chromosomal
+    coordinates and strand, followed by a sequence fetch for the upstream region.
+    The promoter sequence is always returned 5'→3' (distal end at index 0, TSS at the
+    last position) regardless of gene strand.  The sequence is then scanned on both
+    strands for all motifs in ``PROMOTER_MOTIFS`` using ``_scan_promoter_motifs()``.
+
+    Args:
+        req: ``PromoterRequest`` containing the Ensembl gene ID and desired upstream
+             window size in base pairs (clamped to 200–5000).
+
+    Returns:
+        A ``PromoterResponse`` with gene metadata, the promoter sequence, and all
+        cis-regulatory element hits, stored in ``_promoter_cache`` under a UUID token.
+
+    Raises:
+        HTTPException: 400 if ``gene_id`` fails validation or is empty.
+        HTTPException: 400 if the Ensembl REST lookup returns a non-2xx status for
+                       the gene ID.
+        HTTPException: 502 if the Ensembl REST sequence endpoint returns a non-2xx
+                       status.
+    """
+    gene_id = validate_input(req.gene_id, "gene_id")
+    if not gene_id:
+        raise HTTPException(400, {"error": "gene_id is required."})
+    upstream_bp = max(200, min(5000, req.upstream_bp))
+
+    async with httpx.AsyncClient(timeout=_ENSEMBL_TIMEOUT_SECS) as client:
+        lookup_resp = await client.get(
+            f"{ENSEMBL_REST_BASE}/lookup/id/{gene_id}",
+            params={"expand": "0"},
+            headers={"Accept": "application/json"},
+        )
+        if lookup_resp.status_code == 400 or lookup_resp.status_code == 404:
+            raise HTTPException(400, {"error": f"Gene ID '{gene_id}' not found in Ensembl."})
+        if lookup_resp.status_code != 200:
+            raise HTTPException(502, {"error": "Ensembl REST lookup failed."})
+        gene_data = lookup_resp.json()
+        chrom     = gene_data["seq_region_name"]
+        gstart    = gene_data["start"]
+        gend      = gene_data["end"]
+        strand    = gene_data["strand"]
+        species   = gene_data["species"]
+        dname     = gene_data.get("display_name") or gene_id
+
+        if strand == 1:
+            reg_start, reg_end = gstart - upstream_bp, gstart - 1
+        else:
+            reg_start, reg_end = gend + 1, gend + upstream_bp
+        reg_start = max(1, reg_start)
+
+        seq_resp = await client.get(
+            f"{ENSEMBL_REST_BASE}/sequence/region/{species}/{chrom}:{reg_start}..{reg_end}",
+            headers={"Accept": "application/json"},
+        )
+        if seq_resp.status_code != 200:
+            raise HTTPException(502, {"error": "Ensembl REST sequence fetch failed."})
+        sequence = seq_resp.json()["seq"]
+
+        if strand == -1:
+            _RC = str.maketrans("ACGTacgt", "TGCAtgca")
+            sequence = sequence[::-1].translate(_RC)
+
+    hits = _scan_promoter_motifs(sequence)
+    result = PromoterResponse(
+        token="", gene_id=gene_id, display_name=dname,
+        chromosome=chrom, gene_start=gstart, gene_end=gend,
+        strand=strand, upstream_bp=upstream_bp,
+        sequence=sequence, hits=[PromoterHit(**h) for h in hits],
+    )
+    token = _promoter_cache_store(result.model_dump())
+    result.token = token
+    return result

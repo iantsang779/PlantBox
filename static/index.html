@@ -307,6 +307,23 @@
           </button>
         </div>
 
+        <!-- Promoter & CRE Annotator -->
+        <div class="bg-surface-1 border border-surface-2 rounded-xl p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+          <div>
+            <span class="text-base font-bold text-accent">Promoter &amp; CRE Annotator</span>
+            <p class="text-sm text-slate-700 mt-1.5 text-justify">
+              Fetch an upstream promoter window and scan for 16 plant cis-regulatory elements (light, ABA, heat, defense, hormone, and circadian motifs).
+              Two views: colour-coded sequence and graphical SVG overview showing motif positions on both strands.
+            </p>
+          </div>
+          <div class="text-xs text-slate-500 space-y-1 border-t border-surface-2 pt-3 text-justify">
+            <p><span class="font-semibold text-slate-600">How it works:</span> Fetches gene coordinates from the Ensembl REST API, retrieves the upstream genomic window, then scans both strands for IUPAC motif consensus sequences using regex matching.</p>
+            <p><span class="font-semibold text-slate-600">Note:</span> One gene ID at a time; upstream window configurable from 200 to 5000 bp. Supports any Ensembl Plants gene.</p>
+          </div>
+          <button @click="activeTab = 'promoter'" class="btn-primary mt-auto text-white text-sm font-medium rounded-lg px-4 py-2 self-start">
+            Open tool &rarr;
+          </button>
+        </div>
 
       </div>
     </div>
@@ -1646,6 +1663,241 @@
 
   </div><!-- end homology tab -->
 
+  <!-- ── Promoter & CRE Annotator Tab ─────────────────────── -->
+  <div x-show="activeTab === 'promoter'" class="space-y-6">
+
+    <button @click="activeTab = 'home'" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-accent transition-colors focus:outline-none">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      Back to home
+    </button>
+
+    <p class="text-slate-500 text-sm mb-4 text-center">
+      Fetch an upstream promoter window for any Ensembl Plants gene and scan it for 16 known plant cis-regulatory elements across light, ABA/drought, heat, defense, hormone, and circadian categories.
+    </p>
+
+    <!-- Input panel -->
+    <section class="bg-surface-1 border border-surface-2 rounded-xl p-6 fade-in">
+      <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-widest mb-4">
+        Search Parameters
+      </h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+        <!-- Gene ID -->
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">
+            Gene ID
+            <span class="ml-1 text-slate-400">(e.g. AT3G55530)</span>
+          </label>
+          <input
+            type="text"
+            x-model="promGeneId"
+            placeholder="Ensembl gene ID…"
+            @keydown.enter="fetchPromoter()"
+            class="input-field w-full bg-surface-2 border border-slate-300 rounded-lg px-3 py-2.5
+                   text-sm text-slate-900 placeholder-slate-400 transition"
+          />
+        </div>
+
+        <!-- Upstream bp -->
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1.5">
+            Upstream window (bp)
+            <span class="ml-1 text-slate-400">(200–5000)</span>
+          </label>
+          <input
+            type="number"
+            x-model.number="promUpstreamBp"
+            min="200" max="5000" step="100"
+            class="input-field w-full bg-surface-2 border border-slate-300 rounded-lg px-3 py-2.5
+                   text-sm text-slate-900 placeholder-slate-400 transition"
+          />
+        </div>
+      </div>
+
+      <div class="mt-4 flex items-center gap-3">
+        <button
+          @click="fetchPromoter()"
+          :disabled="promLoading"
+          class="btn-primary px-6 py-2.5 rounded-lg text-sm font-semibold text-white
+                 focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <span x-show="!promLoading">Annotate</span>
+          <span x-show="promLoading" class="flex items-center gap-2">
+            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            Annotating…
+          </span>
+        </button>
+
+        <button
+          @click="promGeneId = 'AT3G55530'; promUpstreamBp = 2000"
+          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-600
+                 focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          Try example
+        </button>
+
+        <button
+          x-show="promResult || promError"
+          @click="resetPromoterState()"
+          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-600
+                 focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          Clear
+        </button>
+      </div>
+    </section>
+
+    <!-- Error banner -->
+    <div
+      x-show="promError"
+      x-transition:enter="transition ease-out duration-200"
+      x-transition:enter-start="opacity-0 -translate-y-1"
+      x-transition:enter-end="opacity-100 translate-y-0"
+      class="bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3"
+    >
+      <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+      </svg>
+      <p class="text-sm text-red-700" x-text="promError"></p>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div x-show="promLoading" class="space-y-2 fade-in">
+      <template x-for="i in 5" :key="i">
+        <div class="skeleton-row"></div>
+      </template>
+    </div>
+
+    <!-- Results panel -->
+    <template x-if="promResult">
+      <div class="space-y-6 slide-up">
+
+        <!-- Metadata bar -->
+        <section class="bg-surface-1 border border-surface-2 rounded-xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-surface-2 flex flex-wrap items-center gap-4">
+            <div>
+              <span class="text-xs text-slate-400 uppercase tracking-wider">Gene</span>
+              <p class="text-sm font-semibold text-slate-900 mt-0.5" x-text="promResult.display_name + ' (' + promResult.gene_id + ')'"></p>
+            </div>
+            <div>
+              <span class="text-xs text-slate-400 uppercase tracking-wider">Location</span>
+              <p class="text-sm font-mono text-slate-700 mt-0.5" x-text="promResult.chromosome + ':' + promResult.gene_start.toLocaleString() + '–' + promResult.gene_end.toLocaleString()"></p>
+            </div>
+            <div>
+              <span class="text-xs text-slate-400 uppercase tracking-wider">Strand</span>
+              <p class="text-sm font-mono text-slate-700 mt-0.5" x-text="promResult.strand === 1 ? 'Forward (+)' : 'Reverse (−)'"></p>
+            </div>
+            <div>
+              <span class="text-xs text-slate-400 uppercase tracking-wider">Upstream window</span>
+              <p class="text-sm font-mono text-slate-700 mt-0.5" x-text="promResult.upstream_bp.toLocaleString() + ' bp'"></p>
+            </div>
+            <div>
+              <span class="text-xs text-slate-400 uppercase tracking-wider">Motifs found</span>
+              <p class="text-sm font-mono text-slate-700 mt-0.5">
+                <span x-text="promResult.hits.length"></span> across
+                <span x-text="[...new Set(promResult.hits.map(h => h.category))].length"></span> categories
+              </p>
+            </div>
+          </div>
+
+          <!-- Graphical SVG overview -->
+          <div class="px-5 py-4 border-b border-surface-2 overflow-x-auto">
+            <p class="text-xs text-slate-400 uppercase tracking-wider mb-3">Graphical overview</p>
+            <div x-html="buildPromoterSVG()"></div>
+          </div>
+
+          <!-- Sequence view -->
+          <div class="p-4">
+            <p class="text-xs text-slate-400 uppercase tracking-wider mb-2">Colour-coded sequence (5'→ TSS)</p>
+            <div
+              class="font-mono text-xs leading-relaxed break-all bg-surface-2 rounded-lg p-4
+                     max-h-[60vh] overflow-auto"
+              style="word-break: break-all;"
+            >
+              <template x-for="(iv, idx) in promSeqIntervals" :key="idx">
+                <span
+                  :class="iv.hit ? iv.hit.color_class + ' text-gray-800' : 'bg-gray-100 text-gray-500'"
+                  class="cursor-default rounded-[2px]"
+                  @mouseenter="promSeqTooltip = {visible: true, hit: iv.hit, allHits: iv.allHits, x: $event.clientX + 14, y: $event.clientY + 14}"
+                  @mousemove="promSeqTooltip.x = $event.clientX + 14; promSeqTooltip.y = $event.clientY + 14"
+                  @mouseleave="promSeqTooltip.visible = false"
+                  x-text="iv.seq"
+                ></span>
+              </template>
+            </div>
+          </div>
+        </section>
+
+        <!-- Hits table -->
+        <section x-show="promResult.hits.length > 0" class="bg-surface-1 border border-surface-2 rounded-xl overflow-hidden">
+          <div class="px-5 py-3 border-b border-surface-2">
+            <h3 class="text-sm font-semibold text-slate-600 uppercase tracking-widest">Motif Hits</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="results-table w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-slate-500 uppercase tracking-wider">
+                  <th class="px-4 py-2.5">Name</th>
+                  <th class="px-4 py-2.5">Category</th>
+                  <th class="px-4 py-2.5">Function</th>
+                  <th class="px-4 py-2.5">Position</th>
+                  <th class="px-4 py-2.5">Strand</th>
+                  <th class="px-4 py-2.5">Matched sequence</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(hit, idx) in promResult.hits" :key="idx">
+                  <tr class="border-t border-surface-2">
+                    <td class="px-4 py-2.5 font-medium text-slate-900">
+                      <span :class="hit.color_class" class="inline-block rounded px-1.5 py-0.5" x-text="hit.name"></span>
+                    </td>
+                    <td class="px-4 py-2.5 text-slate-600" x-text="hit.category"></td>
+                    <td class="px-4 py-2.5 text-slate-500 text-xs" x-text="hit.function"></td>
+                    <td class="px-4 py-2.5 font-mono text-slate-700" x-text="hit.start + '–' + hit.end"></td>
+                    <td class="px-4 py-2.5 font-mono text-slate-700" x-text="hit.strand"></td>
+                    <td class="px-4 py-2.5 font-mono text-slate-700" x-text="hit.matched_seq"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div x-show="promResult.hits.length === 0" class="bg-surface-2 border border-surface-2 rounded-xl px-5 py-4 text-sm text-slate-500 text-center">
+          No cis-regulatory motifs were found in the upstream window.
+        </div>
+
+      </div>
+    </template>
+
+    <!-- Sequence tooltip -->
+    <div
+      x-show="promSeqTooltip.visible && promSeqTooltip.hit"
+      :style="`position:fixed;left:${promSeqTooltip.x}px;top:${promSeqTooltip.y}px;z-index:9999;`"
+      class="pointer-events-none bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-xs max-w-xs"
+    >
+      <template x-if="promSeqTooltip.hit">
+        <div>
+          <p class="font-semibold text-slate-900 mb-1" x-text="promSeqTooltip.hit.name"></p>
+          <p class="text-slate-500"><span class="font-medium text-slate-600">Category:</span> <span x-text="promSeqTooltip.hit.category"></span></p>
+          <p class="text-slate-500"><span class="font-medium text-slate-600">Function:</span> <span x-text="promSeqTooltip.hit.function"></span></p>
+          <p class="text-slate-500"><span class="font-medium text-slate-600">Position:</span> <span x-text="promSeqTooltip.hit.start + '–' + promSeqTooltip.hit.end"></span></p>
+          <p class="text-slate-500"><span class="font-medium text-slate-600">Strand:</span> <span x-text="promSeqTooltip.hit.strand"></span></p>
+          <p class="text-slate-500 mt-1 font-mono" x-text="promSeqTooltip.hit.matched_seq"></p>
+          <template x-if="promSeqTooltip.allHits && promSeqTooltip.allHits.length > 1">
+            <p class="text-slate-400 mt-1" x-text="'+ ' + (promSeqTooltip.allHits.length - 1) + ' overlapping motif(s)'"></p>
+          </template>
+        </div>
+      </template>
+    </div>
+
+  </div><!-- end promoter tab -->
+
   <!-- ── Architecture Tab ──────────────────────────────────── -->
   <div x-show="activeTab === 'architecture'" class="space-y-6 slide-up">
 
@@ -2147,6 +2399,15 @@
         primerPairIdx:   0,
         primerType:      'kasp',
         primerFlankingBp: 200,
+
+        // ── Promoter & CRE Annotator tab — state ─────────────────
+        promGeneId: '',
+        promUpstreamBp: 2000,
+        promLoading: false,
+        promError: '',
+        promResult: null,
+        promTooltip:    {visible: false, hit: null, x: 0, y: 0},
+        promSeqTooltip: {visible: false, hit: null, x: 0, y: 0},
 
         // ── Annotate Protein tab — state ─────────────────────────
         paGeneId:        '',
@@ -2966,6 +3227,112 @@
           a.href = URL.createObjectURL(blob);
           a.download = `${r.variant_name}_primers_${r.primer_type}.csv`;
           a.click();
+        },
+
+        // ── Promoter & CRE Annotator computed + methods ────────────
+
+        get promSeqIntervals() {
+          if (!this.promResult) return [];
+          const seq  = this.promResult.sequence;
+          const hits = this.promResult.hits;
+          const bpSet = new Set([0, seq.length]);
+          for (const h of hits) { bpSet.add(h.start); bpSet.add(h.end); }
+          const bps = [...bpSet].sort((a,b) => a - b);
+          return bps.slice(0,-1).map((a, i) => {
+            const b = bps[i+1];
+            const covering = hits.filter(h => h.start <= a && h.end >= b);
+            return { start:a, end:b, seq: seq.slice(a,b),
+                     hit: covering[0] ?? null, allHits: covering };
+          });
+        },
+
+        buildPromoterSVG() {
+          if (!this.promResult) return '';
+          const { sequence, hits, upstream_bp } = this.promResult;
+          const seqLen = sequence.length;
+          const W = 800, barX = 20, barW = 760, barY = 35, barH = 14;
+          const COLOR_MAP = {
+            'bg-yellow-200': '#fef08a', 'bg-yellow-100': '#fef9c3',
+            'bg-sky-200': '#bae6fd', 'bg-sky-100': '#e0f2fe', 'bg-sky-300': '#7dd3fc',
+            'bg-cyan-200': '#a5f3fc', 'bg-blue-200': '#bfdbfe',
+            'bg-indigo-200': '#c7d2fe', 'bg-orange-200': '#fed7aa',
+            'bg-rose-200': '#fecdd3', 'bg-pink-200': '#fbcfe8',
+            'bg-fuchsia-200': '#f5d0fe', 'bg-violet-200': '#ddd6fe',
+            'bg-purple-200': '#e9d5ff', 'bg-emerald-200': '#a7f3d0',
+            'bg-teal-200': '#99f6e4',
+          };
+          // Build unique categories for legend
+          const seenCats = new Map(); // category -> color_class
+          for (const h of hits) {
+            if (!seenCats.has(h.category)) seenCats.set(h.category, h.color_class);
+          }
+          const legendEntries = [...seenCats.entries()];
+          const legendCols = 4;
+          const legendRows = Math.ceil(legendEntries.length / legendCols);
+          const svgH = 80 + legendRows * 22;
+
+          let rects = '';
+          for (const h of hits) {
+            const x = barX + (h.start / seqLen) * barW;
+            const w = Math.max(4, ((h.end - h.start) / seqLen) * barW);
+            const y = h.strand === '+' ? barY : barY + barH + 3;
+            const fill = COLOR_MAP[h.color_class] ?? '#e5e7eb';
+            const stroke = h.strand === '-' ? '#94a3b8' : 'none';
+            const strokeW = h.strand === '-' ? '1' : '0';
+            rects += `<rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="${barH}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}" rx="2"><title>${h.name} (${h.strand}) pos:${h.start}-${h.end} ${h.matched_seq}</title></rect>`;
+          }
+          // TSS triangle
+          const tssTip = barX + barW;
+          const tssTriangle = `<polygon points="${tssTip},${barY - 6} ${tssTip + 8},${barY + barH/2} ${tssTip},${barY + barH + 6}" fill="#374151"/>`;
+
+          // Legend
+          let legend = '';
+          legendEntries.forEach(([cat, cc], i) => {
+            const col = i % legendCols;
+            const row = Math.floor(i / legendCols);
+            const lx = barX + col * (barW / legendCols);
+            const ly = 75 + row * 22;
+            const fill = COLOR_MAP[cc] ?? '#e5e7eb';
+            legend += `<rect x="${lx}" y="${ly}" width="14" height="14" fill="${fill}" rx="2"/><text x="${lx + 18}" y="${ly + 11}" font-size="11" fill="#374151">${cat}</text>`;
+          });
+
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${svgH}" style="font-family:sans-serif">
+  <rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" fill="#e5e7eb" rx="3"/>
+  ${rects}
+  ${tssTriangle}
+  <text x="${barX}" y="${barY - 8}" font-size="11" fill="#6b7280">-${upstream_bp} bp</text>
+  <text x="${tssTip + 12}" y="${barY + 10}" font-size="11" fill="#374151" font-weight="bold">TSS</text>
+  <text x="${barX}" y="${barY + barH + 18}" font-size="10" fill="#94a3b8">+ strand</text>
+  <text x="${barX}" y="${barY + barH + 30}" font-size="10" fill="#94a3b8">- strand</text>
+  ${legend}
+</svg>`;
+        },
+
+        async fetchPromoter() {
+          this.promError = ''; this.promResult = null;
+          if (!this.promGeneId.trim()) { this.promError = 'Please enter a gene ID.'; return; }
+          this.promLoading = true;
+          try {
+            const res = await fetch('/api/promoter', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ gene_id: this.promGeneId.trim(), upstream_bp: this.promUpstreamBp }),
+            });
+            const data = await res.json();
+            if (!res.ok) { this.promError = data.detail?.error ?? 'Unexpected error.'; return; }
+            this.promResult = data;
+          } catch { this.promError = 'Network error — could not reach the server.'; }
+          finally  { this.promLoading = false; }
+        },
+
+        resetPromoterState() {
+          this.promGeneId = '';
+          this.promUpstreamBp = 2000;
+          this.promLoading = false;
+          this.promError = '';
+          this.promResult = null;
+          this.promTooltip = {visible: false, hit: null, x: 0, y: 0};
+          this.promSeqTooltip = {visible: false, hit: null, x: 0, y: 0};
         },
 
         get paIntervals() {
