@@ -1434,6 +1434,13 @@
           <span x-show="homoLoading">Searching…</span>
         </button>
         <button
+          @click="homoGeneId = 'TraesCS3A02G399000'; homoHomologyType = 'orthologues'"
+          class="btn-outline px-4 py-2.5 rounded-lg text-sm text-slate-600
+                 focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          Try example
+        </button>
+        <button
           @click="resetHomologyState()"
           class="btn-outline px-4 py-2 rounded-lg text-sm text-slate-600"
         >
