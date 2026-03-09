@@ -3318,7 +3318,16 @@
           if (!this.promResult) return '';
           const { sequence, hits, upstream_bp } = this.promResult;
           const seqLen = sequence.length;
-          const W = 800, barX = 20, barW = 760, barY = 72, barH = 14;
+          const W = 800;
+          // Track layout: labels on the left, bars to the right
+          const labelW = 72;   // px reserved for "+ strand" / "− strand" labels
+          const barX  = labelW + 10;
+          const barW  = W - barX - 35;
+          const barH  = 14;
+          const trackGap = 10; // gap between plus and minus tracks
+          const keyH  = 30;    // height of key area at top (triangle + T label)
+          const barY_plus  = keyH + 14;
+          const barY_minus = barY_plus + barH + trackGap;
           const COLOR_MAP = {
             'bg-yellow-200': '#fef08a', 'bg-yellow-100': '#fef9c3',
             'bg-sky-200': '#bae6fd', 'bg-sky-100': '#e0f2fe', 'bg-sky-300': '#7dd3fc',
@@ -3330,38 +3339,36 @@
             'bg-teal-200': '#99f6e4',
           };
           // Build unique categories for legend
-          const seenCats = new Map(); // category -> color_class
+          const seenCats = new Map();
           for (const h of hits) {
             if (!seenCats.has(h.category)) seenCats.set(h.category, h.color_class);
           }
           const legendEntries = [...seenCats.entries()];
           const legendCols = 4;
           const legendRows = Math.ceil(legendEntries.length / legendCols);
-          const legendStartY = barY + barH * 2 + 3 + 14;
+          const legendStartY = barY_minus + barH + 20;
           const svgH = legendStartY + legendRows * 22 + 8;
 
-          let rects = '';
+          // Motif rects — split into separate tracks
+          let plusRects = '', minusRects = '';
           for (const h of hits) {
             const x = barX + (h.start / seqLen) * barW;
             const w = Math.max(4, ((h.end - h.start) / seqLen) * barW);
-            const y = h.strand === '+' ? barY : barY + barH + 3;
             const fill = COLOR_MAP[h.color_class] ?? '#e5e7eb';
-            const stroke = h.strand === '-' ? '#94a3b8' : 'none';
-            const strokeW = h.strand === '-' ? '1' : '0';
-            rects += `<rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="${barH}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}" rx="2"><title>${h.name} (${h.strand}) pos:${h.start}-${h.end} ${h.matched_seq}</title></rect>`;
+            const rect = `<rect x="${x.toFixed(1)}" width="${w.toFixed(1)}" height="${barH}" fill="${fill}" rx="2"><title>${h.name} (${h.strand}) pos:${h.start}–${h.end} ${h.matched_seq}</title></rect>`;
+            if (h.strand === '+') plusRects  += rect.replace('height=', `y="${barY_plus}" height=`);
+            else                  minusRects += rect.replace('height=', `y="${barY_minus}" height=`);
           }
-          // TSS triangle
-          const tssTip = barX + barW;
-          const tssTriangle = `<polygon points="${tssTip},${barY - 6} ${tssTip + 8},${barY + barH/2} ${tssTip},${barY + barH + 6}" fill="#374151"/>`;
 
-          // Key (above the bar)
+          // TSS triangle spanning both tracks
+          const tssTip  = barX + barW;
+          const tssMidY = (barY_plus + barY_minus + barH) / 2;
+          const tssTriangle = `<polygon points="${tssTip},${barY_plus - 5} ${tssTip + 9},${tssMidY} ${tssTip},${barY_minus + barH + 5}" fill="#374151"/>`;
+
+          // Key at top — only T = Transcript Start (strands are labeled on tracks)
           const key = `
-  <rect x="${barX}" y="8" width="12" height="12" fill="#bae6fd" rx="2"/>
-  <text x="${barX + 17}" y="19" font-size="11" fill="#374151">+ strand motifs</text>
-  <rect x="${barX + 155}" y="8" width="12" height="12" fill="#e5e7eb" rx="2" stroke="#94a3b8" stroke-width="1"/>
-  <text x="${barX + 172}" y="19" font-size="11" fill="#374151">− strand motifs</text>
-  <polygon points="${barX + 318},8 ${barX + 326},14 ${barX + 318},20" fill="#374151"/>
-  <text x="${barX + 331}" y="19" font-size="11" fill="#374151">T = Transcript Start</text>`;
+  <polygon points="${barX},6 ${barX + 8},12 ${barX},18" fill="#374151"/>
+  <text x="${barX + 13}" y="17" font-size="11" fill="#374151">T = Transcript Start</text>`;
 
           // Legend
           let legend = '';
@@ -3376,12 +3383,16 @@
 
           return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${svgH}" style="font-family:sans-serif">
   ${key}
-  <line x1="${barX}" y1="27" x2="${W - 10}" y2="27" stroke="#e5e7eb" stroke-width="1"/>
-  <rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" fill="#e5e7eb" rx="3"/>
-  ${rects}
+  <line x1="10" y1="26" x2="${W - 10}" y2="26" stroke="#e5e7eb" stroke-width="1"/>
+  <text x="${labelW}" y="${barY_plus + 10}" font-size="11" fill="#374151" text-anchor="end">+ strand</text>
+  <rect x="${barX}" y="${barY_plus}" width="${barW}" height="${barH}" fill="#e5e7eb" rx="3"/>
+  ${plusRects}
+  <text x="${labelW}" y="${barY_minus + 10}" font-size="11" fill="#374151" text-anchor="end">− strand</text>
+  <rect x="${barX}" y="${barY_minus}" width="${barW}" height="${barH}" fill="#e5e7eb" rx="3"/>
+  ${minusRects}
   ${tssTriangle}
-  <text x="${barX}" y="${barY - 8}" font-size="11" fill="#6b7280">-${upstream_bp} bp</text>
-  <text x="${tssTip + 12}" y="${barY + 10}" font-size="11" fill="#374151" font-weight="bold">T</text>
+  <text x="${barX}" y="${barY_minus + barH + 13}" font-size="10" fill="#6b7280">← −${upstream_bp} bp</text>
+  <text x="${tssTip + 13}" y="${tssMidY + 4}" font-size="11" fill="#374151" font-weight="bold">T</text>
   ${legend}
 </svg>`;
         },
