@@ -50,7 +50,7 @@
   .diagram {
     position: relative;
     width: 1240px;
-    height: 850px;
+    height: 1020px;
   }
 
   .arrows-svg {
@@ -159,7 +159,7 @@
 
 <header>
   <h1>PlantBox &mdash; System Architecture</h1>
-  <p>FastAPI SPA &middot; EMBL-EBI MySQL &middot; Ensembl REST API &middot; primer3</p>
+  <p>FastAPI SPA &middot; EMBL-EBI MySQL &middot; Ensembl REST API &middot; primer3 &middot; CRE scanner</p>
 </header>
 
 <div class="legend">
@@ -216,6 +216,7 @@
     <div class="node spa" id="spa-protein"   style="left:10px; top:228px; width:178px">&#128302; Annotate Protein</div>
     <div class="node spa" id="spa-homology"  style="left:10px; top:284px; width:178px">&#127807; Homologous Sequences</div>
     <div class="node spa" id="spa-sequences" style="left:10px; top:352px; width:178px">&#128203; Sequence Retrieval</div>
+    <div class="node spa" id="spa-promoter"  style="left:10px; top:408px; width:178px">&#127807; Promoter &amp; CRE Annotator</div>
 
     <!-- ═══════════════════════════════════════════════════════════
          COL 2 — FastAPI Routes (x=208, width=230)
@@ -230,16 +231,18 @@
     <div class="node route" id="route-csv"       style="left:208px; top:393px; width:230px">GET /api/download/csv/{token}</div>
     <div class="node route" id="route-excel"     style="left:208px; top:432px; width:230px">GET /api/download/excel/{token}</div>
     <div class="node route" id="route-fasta"     style="left:208px; top:471px; width:230px">GET /api/download/fasta/{token}</div>
+    <div class="node route" id="route-promoter"  style="left:208px; top:510px; width:230px">POST /api/promoter</div>
 
     <!-- Section divider before helpers -->
-    <div class="section-divider" style="left:208px; top:527px; width:230px;"></div>
+    <div class="section-divider" style="left:208px; top:565px; width:230px;"></div>
 
     <!-- Helper functions -->
-    <div class="col-label" style="left:208px; top:534px; color:#334155; background:#e2e8f0">Helpers</div>
-    <div class="node helper" id="helper-fetch-join"   style="left:208px; top:554px; width:230px">fetch_and_join()<br><small>asyncio.gather: variant + marker queries</small></div>
-    <div class="node helper" id="helper-strandedness" style="left:208px; top:614px; width:230px">_fetch_strandedness()<br><small>POST /lookup/id batch to Ensembl REST</small></div>
-    <div class="node helper" id="helper-segments"     style="left:208px; top:674px; width:230px">_compute_segments()<br><small>maps exon coords onto genomic seq</small></div>
-    <div class="node helper" id="helper-species-pool" style="left:208px; top:734px; width:230px">_get_species_core_pool()<br><small>lazy aiomysql.Pool per species</small></div>
+    <div class="col-label" style="left:208px; top:572px; color:#334155; background:#e2e8f0">Helpers</div>
+    <div class="node helper" id="helper-fetch-join"   style="left:208px; top:592px; width:230px">fetch_and_join()<br><small>asyncio.gather: variant + marker queries</small></div>
+    <div class="node helper" id="helper-strandedness" style="left:208px; top:652px; width:230px">_fetch_strandedness()<br><small>POST /lookup/id batch to Ensembl REST</small></div>
+    <div class="node helper" id="helper-segments"     style="left:208px; top:712px; width:230px">_compute_segments()<br><small>maps exon coords onto genomic seq</small></div>
+    <div class="node helper" id="helper-species-pool" style="left:208px; top:772px; width:230px">_get_species_core_pool()<br><small>lazy aiomysql.Pool per species</small></div>
+    <div class="node helper" id="helper-scan-motifs"  style="left:208px; top:832px; width:230px">_scan_promoter_motifs()<br><small>regex scan both strands; IUPAC expansion</small></div>
 
     <!-- ═══════════════════════════════════════════════════════════
          COL 3 — In-memory caches (x=458, width=200)
@@ -248,7 +251,8 @@
     <div class="node cache" id="cache-fasta"   style="left:458px; top:174px; width:200px">_fasta_cache<br><small>FASTA text blobs</small></div>
     <div class="node cache" id="cache-annotate"style="left:458px; top:276px; width:200px">_annotate_cache<br><small>gene annotation results</small></div>
     <div class="node cache" id="cache-prot"    style="left:458px; top:378px; width:200px">_prot_annotate_cache<br><small>protein annotation results</small></div>
-    <div class="node cache" id="cache-species" style="left:458px; top:480px; width:200px">_species_core_pools<br><small>species &#8594; aiomysql.Pool (persistent)</small></div>
+    <div class="node cache" id="cache-species"   style="left:458px; top:480px; width:200px">_species_core_pools<br><small>species &#8594; aiomysql.Pool (persistent)</small></div>
+    <div class="node cache" id="cache-promoter"  style="left:458px; top:562px; width:200px">_promoter_cache<br><small>promoter annotation results</small></div>
 
     <!-- ═══════════════════════════════════════════════════════════
          COL 4 — EBI MySQL (x=683, width=230)
@@ -266,7 +270,7 @@
     <div class="node rest" id="rest-seq-genomic"   style="left:938px; top:234px; width:248px">GET /sequence/id/{id}?type=genomic<br><small>genomic sequence &mdash; /api/annotate</small></div>
     <div class="node rest" id="rest-seq-batch"     style="left:938px; top:324px; width:248px">POST /sequence/id<br><small>batch FASTA &mdash; /api/sequences</small></div>
     <div class="node rest" id="rest-seq-protein"   style="left:938px; top:414px; width:248px">GET /sequence/id/{tx_id}?type=protein<br><small>protein seq &mdash; /api/annotate_protein</small></div>
-    <div class="node rest" id="rest-seq-region"    style="left:938px; top:504px; width:248px">GET /sequence/region/&hellip;/{chr}:{s}..{e}<br><small>flanking seq &mdash; /api/primers</small></div>
+    <div class="node rest" id="rest-seq-region"    style="left:938px; top:504px; width:248px">GET /sequence/region/&hellip;/{chr}:{s}..{e}<br><small>flanking seq &mdash; /api/primers &amp; /api/promoter</small></div>
 
     <!-- Section divider before primer3 -->
     <div class="section-divider" style="left:938px; top:568px; width:248px;"></div>
@@ -297,12 +301,14 @@ const CONNECTIONS = [
   ['spa-homology',  'route-excel',     'blue',   'GET /api/download/excel/{token}'],
   ['spa-sequences', 'route-sequences', 'blue',   'POST /api/sequences — bulk FASTA retrieval'],
   ['spa-sequences', 'route-fasta',     'blue',   'GET /api/download/fasta/{token}'],
+  ['spa-promoter',  'route-promoter',  'blue',   'POST /api/promoter — upstream CRE scan'],
 
   // Routes → Helpers
   ['route-query',   'helper-fetch-join',    'violet', 'delegates to fetch_and_join()'],
   ['route-query',   'helper-strandedness',  'violet', 'then calls _fetch_strandedness()'],
-  ['route-annotate','helper-segments',      'violet', '_compute_segments() maps exons → introns'],
-  ['route-prot',    'helper-species-pool',  'violet', '_get_species_core_pool() — lazy per-species pool'],
+  ['route-annotate', 'helper-segments',      'violet', '_compute_segments() maps exons → introns'],
+  ['route-prot',     'helper-species-pool', 'violet', '_get_species_core_pool() — lazy per-species pool'],
+  ['route-promoter', 'helper-scan-motifs',  'violet', '_scan_promoter_motifs() — IUPAC regex, both strands'],
 
   // Routes → Caches (write)
   ['route-query',     'cache-result',   'amber', 'stores pandas rows as list[dict] under UUID token'],
@@ -310,6 +316,7 @@ const CONNECTIONS = [
   ['route-sequences', 'cache-fasta',    'amber', 'stores FASTA text under UUID token'],
   ['route-annotate',  'cache-annotate', 'amber', 'stores AnnotateResponse'],
   ['route-prot',      'cache-prot',     'amber', 'stores ProteinAnnotateResponse'],
+  ['route-promoter',  'cache-promoter', 'amber', 'stores PromoterResponse under UUID token'],
 
   // Download routes → Caches (read)
   ['route-csv',   'cache-result', 'amber', 'O(1) token lookup → pandas CSV serialisation'],
@@ -335,6 +342,8 @@ const CONNECTIONS = [
   ['route-sequences',     'rest-seq-batch',      'teal', 'POST /sequence/id — batch protein/cDNA FASTA'],
   ['route-prot',          'rest-seq-protein',    'teal', 'GET /sequence/id/{tx_id}?type=protein'],
   ['route-primers',       'rest-seq-region',     'teal', 'GET /sequence/region/triticum_aestivum/{chr}:{s}..{e}'],
+  ['route-promoter',      'rest-lookup-expand',  'teal', 'GET /lookup/id/{gene_id}?expand=0 — gene coords + strand'],
+  ['route-promoter',      'rest-seq-region',     'teal', 'GET /sequence/region/{species}/{chr}:{s}..{e} — upstream window'],
 
   // Routes → primer3
   ['route-primers', 'primer3-design', 'rose', 'primer3.design_primers() — KASP (FORCE_LEFT_END) or PCR (TARGET)'],

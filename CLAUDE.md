@@ -212,6 +212,26 @@ The landing page card is titled **Variant Explorer & KASP Primer Design**. The p
 - `exportPrimers()` creates a client-side Blob CSV download named `{variant_name}_primers_{type}.csv`.
 - `resetState()` clears primer state alongside query results.
 
+### Promoter & CRE Annotator tab
+
+Endpoint: `POST /api/promoter` — accepts `{ gene_id: string, upstream_bp: int = 2000 }`.
+
+**Backend flow:**
+1. Validate `gene_id` via `validate_input()`; clamp `upstream_bp` to 200–5000.
+2. `GET /lookup/id/{gene_id}?expand=0` to Ensembl REST — obtains chromosome, start/end, strand, species, display name.
+3. Compute upstream region coords (strand-aware): forward-strand genes use `[gstart-upstream_bp, gstart-1]`; reverse-strand genes use `[gend+1, gend+upstream_bp]`.
+4. `GET /sequence/region/{species}/{chr}:{start}..{end}` to fetch the upstream sequence; for reverse-strand genes the sequence is reverse-complemented so index 0 = distal, last index = TSS.
+5. `_scan_promoter_motifs(sequence)` scans both strands for all 16 motifs in `PROMOTER_MOTIFS` using `_iupac_to_regex()` to expand IUPAC ambiguity codes (M, Y, R, S, etc.) to character classes. Reverse-strand hit coordinates are remapped to forward-strand space. Hits sorted by start position.
+6. Result is cached in `_promoter_cache` (same TTL/eviction as other caches) and returned as `PromoterResponse`.
+
+**`PROMOTER_MOTIFS`** — 16 plant CREs across 12 categories: Core Promoter (TATA box, CAAT box), Light (G-box, I-box, GATA motif, Box-4), ABA/Drought (ABRE), Cold/Drought (DRE/CRT), Heat Stress (HSE), Defense (W-box), JA/SA (TGACG motif), Salicylic Acid (TCA element), Auxin (AuxRE), Ethylene (GCC box), MYB (MBS), Circadian (Evening element).
+
+**Frontend behaviour:**
+- Users enter an Ensembl gene ID and an upstream window (200–5000 bp, default 2000) and click **Annotate**.
+- **Graphical SVG overview** (`buildPromoterSVG()`): grey promoter bar, TSS triangle marker, per-strand coloured motif blocks (plus-strand at y=35, minus-strand at y+17), category legend below.
+- **Colour-coded sequence view**: `get promSeqIntervals()` decomposes sequence at motif boundary breakpoints; non-annotated regions get `bg-gray-100`. Hover shows tooltip with motif name, category, function, position, strand.
+- **Hits table**: all hits sorted by position with name, category, position range, strand, and matched sequence.
+
 ### Input validation
 
 All user inputs pass through `validate_input()` in `database.py` before query construction: max 100 chars, regex `^[\w.\-]+$`. SQL parameters are always passed via aiomysql parameterisation (never interpolated).
